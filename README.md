@@ -6,6 +6,8 @@ as queued in the database. Each training step then records which samples it used
 predictions, the loss and the accuracy. The web page shows all of it live, read straight from the
 database.
 
+![mods_ dashboard](assets/dashboard.png)
+
 The demo trains a tiny CNN on MNIST: one 3×3 convolution, ReLU, max pooling, then two linear
 layers.
 
