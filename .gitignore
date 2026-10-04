@@ -1,0 +1,8 @@
+__pycache__/
+.pytest_cache/
+.run/
+.venv/
+*.egg-info/
+bin/
+data/
+modsdb-data/

@@ -1,0 +1,23 @@
+[project]
+name = "mods"
+version = "0.1.0"
+description = "Model Data Observability: watch a PyTorch model consume data from a WAL-backed database"
+requires-python = ">=3.10"
+dependencies = ["torch>=2.2", "grpcio>=1.60", "protobuf>=5", "fastapi>=0.110", "uvicorn>=0.27"]
+
+[project.optional-dependencies]
+examples = ["torchvision"]
+dev = ["pytest", "grpcio-tools", "httpx"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["python"]
+
+[tool.setuptools.package-data]
+"mods.server" = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]

@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mods_</title>
+<style>
+  /* Light, muted, monospace. Hairline rules, one quiet slate-teal accent. System fonts only. */
+  :root { color-scheme: light;
+    --bg:#f5f6f7; --panel:#ffffff; --soft:#eef0f2; --line:#e1e4e8; --line2:#c9ced5;
+    --text:#000000; --dim:#000000; --faint:#000000; --accent:#2f6b67; --on-accent:#ffffff;
+    --w0:#4a72b0; --w1:#b0587f; --w2:#a07a2c; --good:#2f7a4f; --bad:#b4453a;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.5 var(--mono); font-variant-numeric: tabular-nums; }
+  .muted { color: var(--dim); font-size: 11.5px; margin: 0; }
+  .ok, .no { color: var(--text); }
+  button { font: 500 12px var(--mono); letter-spacing: .04em; padding: 6px 14px; border-radius: 2px; cursor: pointer;
+    border: 1px solid var(--line2); background: transparent; color: var(--text); }
+  button:hover { border-color: var(--dim); }
+  button.ink { background: var(--text); border-color: var(--text); color: var(--panel); font-weight: 600; }
+  button.ink:hover { background: #3a4048; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+  select, input[type=number] { font: 12px var(--mono); padding: 5px 8px; border-radius: 2px; border: 1px solid var(--line2); background: var(--panel); color: var(--text); }
+
+  /* ---- header */
+  header { position: sticky; top: 0; z-index: 2; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .bar { display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; padding: 10px 24px; }
+  h1 { margin: 0; font: 700 18px/1 var(--mono); }
+  .tagline { font: 12px var(--mono); }
+  .stamp { font: 12px var(--mono); padding-left: 16px; border-left: 1px solid var(--line); }
+  .controls { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .speed { display: grid; font: 11.5px var(--mono); } .speed input { width: 120px; accent-color: var(--accent); }
+  .counters { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; border-top: 1px solid var(--line); }
+  .counters > div { padding: 10px 24px 12px; border-right: 1px solid var(--line); min-width: 0; }
+  .counters > div:last-child { border-right: 0; }
+  .label { display: block; font: 12px var(--mono); margin-bottom: 2px; }
+  .big { display: block; font: 600 40px/1 var(--mono); letter-spacing: -.02em; color: var(--text); }
+
+  .bump .big { animation: bump .3s ease-out; }
+  @keyframes bump { from { opacity: .35; } }
+  .tape { display: flex; gap: 1px; height: 20px; margin-top: 8px; }
+  .tape i { flex: 1; min-width: 1px; background: var(--soft); }
+  .tape i.done { background: var(--accent); opacity: .8; }
+  .tape i.q { background: var(--line2); }
+  .tape i.next { background: var(--line2); outline: 1.5px solid var(--text); position: relative; }
+  .tape.solid { background: linear-gradient(90deg, var(--accent) var(--p), var(--soft) var(--p)); } .tape.solid i { display: none; }
+  .mode { font: 11px var(--mono); color: var(--dim); display: block; margin-bottom: 4px; }
+  .mode::before { content: "○ "; } .mode.running::before { color: var(--accent); } .mode.running::before { content: "● "; animation: blink 1.4s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity: .3; } }
+  #loss { font: 600 20px/1.2 var(--mono); }
+  @media (max-width: 900px) {
+    .counters { grid-template-columns: 1fr 1fr; } .counters > div:nth-child(n+3) { grid-column: 1 / -1; border-top: 1px solid var(--line); }
+    .bar, .counters > div { padding-left: 16px; padding-right: 16px; } .big { font-size: 32px; } }
+
+  /* ---- layout */
+  main { display: grid; gap: 16px; padding: 20px 24px 40px; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); padding: 16px; } }
+  .col { display: grid; gap: 16px; }
+  section { background: var(--panel); border: 1px solid var(--line); padding: 14px 16px; min-width: 0; }
+  section h2 { margin: 0 0 12px; font: 700 14px var(--mono); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  section h2 small { font: 12px var(--mono); font-weight: 400; }
+
+  /* ---- worker queues */
+  .lane { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+  .lane > b { flex: 0 0 82px; font: 700 12px var(--mono); padding: 4px 0 4px 8px; border-left: 3px solid var(--c); }
+  .batches { display: flex; gap: 6px; flex-wrap: wrap; }
+  .batch { font: 11px var(--mono); padding: 5px 8px; border: 1px solid var(--line); border-left: 2px solid var(--c); background: var(--panel); }
+  .batch.next { border-color: var(--text); border-left-color: var(--c); }
+  .batch .bh { display: flex; justify-content: space-between; gap: 10px; color: var(--dim); margin-bottom: 3px; }
+  .batch.next .bh b { color: var(--text); }
+
+  .ids { display: grid; grid-template-columns: repeat(8, auto); gap: 1px 8px; font: 11px/1.5 var(--mono); color: var(--text); }
+  .more { display: block; font: 11px var(--mono); margin-top: 3px; }
+  .empty { font: 11px var(--mono); padding: 6px 10px; border: 1px dashed var(--line2); color: var(--faint); }
+  #last { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--dim); }
+  #last b { color: var(--text); font-weight: 600; }
+
+  /* ---- modsdb */
+  .db { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .db b { display: block; font: 600 16px var(--mono); } .db .label { font-size: 11.5px; }
+
+  /* ---- batch log */
+  .log { max-height: 460px; overflow: auto; border: 1px solid var(--line); }
+  table { border-collapse: collapse; width: 100%; font: 11.5px var(--mono); }
+  th, td { padding: 4px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+  th { position: sticky; top: 0; z-index: 1; background: var(--soft); font-weight: 700; font-size: 11.5px; }
+  tbody tr:hover td { background: var(--soft); }
+  th:first-child, td:first-child { text-align: left; width: 1%; }
+  .exp { font-size: 10px; padding: 0 6px; line-height: 18px; text-transform: none; }
+  tr.open > td { background: var(--soft); font-weight: 700; }
+  tr.detail > td { background: var(--soft); padding: 8px 10px 12px; text-align: left; white-space: normal; color: var(--text); }
+  .sgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 3px; }
+  .scell { display: flex; justify-content: space-between; gap: 8px; padding: 3px 8px; font: 11px var(--mono); color: var(--dim);
+    background: var(--panel); border: 1px solid var(--line); border-left: 2px solid var(--good); }
+  .scell.wrong { border-left-color: var(--bad); }
+  .scell b { color: var(--text); font-weight: 600; }
+
+  /* ---- validation */
+  .vgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+  .vcell { padding: 5px 2px; display: grid; justify-items: center; gap: 2px; font: 10.5px var(--mono); color: var(--dim);
+    border: 1px solid var(--line); background: var(--panel); text-transform: none; letter-spacing: 0; }
+  .vcell.sel { border-color: var(--accent); }
+  .vcell canvas { width: 100%; max-width: 52px; aspect-ratio: 1; image-rendering: pixelated; }
+  .vbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+  #acc { margin-top: 12px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  #acc b { font: 600 26px/1 var(--mono); }
+  .probs { display: grid; gap: 2px; margin-top: 10px; }
+  .probs div { display: grid; grid-template-columns: 14px 1fr 46px; gap: 8px; align-items: center; font: 11px var(--mono); color: var(--dim); }
+  .probs i { display: block; height: 8px; background: var(--line2); min-width: 1px; }
+  .probs .t { color: var(--text); } .probs .t i { background: var(--accent); }
+
+  /* ---- graph */
+  .graph { display: grid; justify-items: center; }
+  .node { width: 100%; max-width: 220px; border: 1px solid var(--line2); padding: 5px 10px; font: 600 11.5px var(--mono); background: var(--panel); }
+  .node.io { border-style: dashed; }
+  .node span { display: block; color: var(--faint); font-weight: 400; }
+  .arrow { color: var(--faint); font: 11px var(--mono); line-height: 1.3; }
+
+  /* ---- overlays */
+  .overlay { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--bg) 96%, transparent); }
+  .overlay[hidden] { display: none; }
+  .modal { width: min(340px, 100%); display: grid; gap: 14px; background: var(--panel); border: 1px solid var(--line2); padding: 22px; }
+  .modal h2 { margin: 0; font: 700 16px var(--mono); }
+  .modal label { display: grid; gap: 4px; font: 12px var(--mono); }
+  .modal input { font-size: 18px; padding: 8px 10px; }
+</style>
+</head>
+<body>
+<div id="setup-wrap" class="overlay">
+  <form id="setup" class="modal">
+    <h2>mods_ · start a new run</h2>
+    <label>Batch size (samples per training step) <input id="cfg-bs" type="number" min="1" max="999" value="64" required></label>
+    <label>Data loader workers (processes that prepare batches) <input id="cfg-w" type="number" min="0" max="8" value="2" required></label>
+    <p id="setup-err" class="no" style="margin:0; font-size:12px"></p>
+    <button class="ink">Start training</button>
+  </form>
+</div>
+<div id="ended" class="overlay" hidden>
+  <div class="modal"><h2>Run ended</h2><p id="ended-msg" class="muted"></p><button class="ink" onclick="location.reload()">Start a new run</button></div>
+</div>
+
+<header>
+  <div class="bar">
+    <h1>mods_</h1>
+    <span class="tagline">(m)odel (o)bservability for (d)ata</span>
+    <span class="stamp" id="run">—</span>
+    <div class="controls">
+      <button id="btn-step" title="Step (S)">Step</button>
+      <button id="btn-run" class="ink" title="Run / pause (R)">Run</button>
+      <label class="speed">Pause between steps: <span><span id="delay-v">300</span> ms</span><input id="delay" type="range" min="0" max="1500" step="50" value="300"></label>
+    </div>
+  </div>
+  <div class="counters">
+    <div id="c-epoch"><span class="label">Epoch</span><span class="big" id="epoch">—</span></div>
+    <div id="c-step"><span class="label">Step</span><span class="big" id="step">—</span></div>
+    <div><span class="label" id="batch">Batch —</span><div class="tape" id="tape"></div></div>
+    <div><span class="mode" id="mode">Paused</span><span class="label">Loss (last batch)</span><span id="loss">—</span></div>
+  </div>
+</header>
+
+<main>
+  <div class="col">
+    <section>
+      <h2>Batches waiting in each worker <small id="qdesc"></small></h2>
+      <div id="lanes"></div>
+      <div id="last">No batch consumed yet.</div>
+    </section>
+    <section>
+      <h2>Training history <small>last 50 steps</small><select id="run-select" aria-label="Run" style="margin-left:auto"></select></h2>
+      <div class="log"><table>
+        <thead><tr><th></th><th>Step</th><th>Epoch</th><th>Batch</th><th>Worker</th><th>Samples</th><th>Loss</th><th>Accuracy</th><th>Log position</th></tr></thead>
+        <tbody id="blog"><tr><td colspan="9" class="muted">No training steps yet.</td></tr></tbody>
+      </table></div>
+    </section>
+    <section>
+      <h2>Database (modsdb)</h2>
+      <div class="db" id="db"></div>
+    </section>
+  </div>
+  <div class="col">
+    <section>
+      <h2>Validation check <small>10 random samples the model never trains on</small></h2>
+      <div class="vgrid" id="vgrid"></div>
+      <div class="vbtns"><button id="btn-eval" class="ink" title="Evaluate (E)">Evaluate</button><button id="btn-shuffle" title="Shuffle (X)">Pick 10 new samples</button></div>
+      <div id="acc"></div>
+      <div id="dist"></div>
+    </section>
+    <section>
+      <h2>Model layers <small id="gdesc"></small></h2>
+      <div class="graph" id="graph"></div>
+    </section>
+  </div>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const f3 = (v) => (v == null ? "—" : Number(v).toFixed(3));
+const pct = (v) => `${Math.round(100 * v)}%`;
+const pad = (n, w) => { const s = String(n); return s.length >= w ? s : `<span class="dim">${"0".repeat(w - s.length)}</span>${s}`; };
+const SHOW_IDS = 16;  // list at most this many sample indices per batch
+const more = (n) => (n > SHOW_IDS ? `<span class="more">+${n - SHOW_IDS} more</span>` : "");
+const lane = (w) => `var(--w${Math.max(w, 0) % 3})`;
+let S = null, RUN = null, ended = false;
+let valKey = null, valSamples = [], lastEval = null, selected = null;
+
+async function call(url, opts = {}) {
+  const r = await fetch(url, { cache: "no-store", ...opts });
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 410) endRun(d.detail);
+  if (!r.ok) throw new Error(d.detail || r.statusText);
+  return d;
+}
+const get = (url) => call(url);
+const post = (url, body) => call(url, { method: "POST", ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}) });
+const api = (path) => `/api/runs/${RUN}${path}`;
+function endRun(msg) {
+  if (ended) return;
+  ended = true;
+  $("#ended-msg").textContent = msg || "This run has ended.";
+  $("#ended").hidden = false;
+}
+
+// ---- header
+let prev = {};
+function bump(id) { const el = $(id); el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); }
+function renderHeader(s) {
+  $("#run").textContent = `batch size: ${s.batch_size}. workers: ${s.num_workers}.`;
+  const m = $("#mode"); m.textContent = s.running ? "Running" : "Paused"; m.classList.toggle("running", s.running);
+  $("#btn-run").textContent = s.running ? "Pause" : "Run";
+  $("#epoch").textContent = s.epoch;
+  $("#step").textContent = s.step;
+  if (prev.step != null && s.step !== prev.step) bump("#c-step");
+  if (prev.epoch != null && s.epoch !== prev.epoch) bump("#c-epoch");
+  prev = { step: s.step, epoch: s.epoch };
+  $("#loss").textContent = f3(s.last_step?.loss);
+  $("#batch").textContent = `Batch ${s.batch} of ${s.batches_per_epoch} in this epoch`;
+  const tape = $("#tape"), n = s.batches_per_epoch;
+  if (n > 240) { tape.className = "tape solid"; tape.style.setProperty("--p", `${(100 * s.batch) / n}%`); tape.innerHTML = ""; return; }
+  const queued = new Map();
+  s.queue.forEach((w) => w.batches.forEach((b) => queued.set(b.batch, w.worker)));
+  let h = "";
+  for (let i = 0; i < n; i++) {
+    if (i < s.batch) h += `<i class="done"></i>`;
+    else if (queued.has(i)) h += `<i class="${i === s.batch ? "next" : "q"}" title="batch ${i}: queued by worker ${queued.get(i)}"></i>`;
+    else h += `<i></i>`;
+  }
+  tape.className = "tape"; tape.innerHTML = h;
+}
+
+// ---- worker queues & db
+function renderQueues(s) {
+  const per = s.num_workers ? s.prefetch_factor : 1;
+  const queued = s.queue.reduce((n, w) => n + w.batches.length, 0);
+  $("#qdesc").textContent = `${queued} of ${Math.max(1, s.num_workers) * s.prefetch_factor} batches ready`;
+  $("#lanes").innerHTML = s.queue.map((w) => {
+    let h = `<div class="lane" style="--c:${lane(w.worker)}"><b>${w.worker < 0 ? "Main process" : "Worker " + w.worker}</b><div class="batches">`;
+    for (const b of w.batches) h += `<div class="batch${b.batch === s.batch ? " next" : ""}"><div class="bh"><span>Batch ${b.batch} · ${b.ids.length} samples</span><b>${b.batch === s.batch ? "next" : ""}</b></div><div class="ids">${b.ids.slice(0, SHOW_IDS).map((i) => `<span>${i}</span>`).join("")}</div>${more(b.ids.length)}</div>`;
+    for (let i = w.batches.length; i < per; i++) h += `<span class="empty">preparing…</span>`;
+    return h + "</div></div>";
+  }).join("");
+  const l = s.last_step;
+  $("#last").innerHTML = l ? `Last step (${l.step}) trained on batch ${l.batch} from ${l.worker < 0 ? "the main process" : "worker " + l.worker}: loss ${f3(l.loss)}, ${pct(l.acc)} correct. Saved to the database at log position ${l.lsn}.`
+    : "No training steps yet. Press Step to train on the next batch.";
+  const d = s.db;
+  $("#db").innerHTML = [["Latest log position (LSN)", d.last_lsn.toLocaleString()], ["Last snapshot at position", d.last_snapshot_lsn || "none yet"],
+    ["Write-ahead log size", `${(d.wal_bytes / 1048576).toFixed(1)} MB`], ["Writes per disk sync", d.fsyncs ? (d.commits / d.fsyncs).toFixed(2) : "—"]]
+    .map(([k, v]) => `<div><span class="label">${k}</span><b>${v}</b></div>`).join("");
+}
+
+function render(s) {
+  S = s;
+  renderHeader(s);
+  renderQueues(s);
+  loadRuns(s.run);
+  if (s.step !== loggedStep) { loggedStep = s.step; if (viewRun == null || viewRun === s.run) loadBatchLog(); }
+  if (s.val_set.join() !== valKey) { valKey = s.val_set.join(); lastEval = null; selected = null; loadVal(); }
+}
+async function poll() {
+  if (ended) return;
+  try { render(await get(api("/status"))); } catch (e) { if (!ended) $("#mode").textContent = "offline"; }
+  setTimeout(poll, 250);
+}
+
+// ---- images
+function draw(canvas, img) {
+  const ctx = canvas.getContext("2d");
+  canvas.width = img[0].length; canvas.height = img.length;
+  const flat = img.flat(), lo = Math.min(...flat), hi = Math.max(...flat) || 1;
+  const data = ctx.createImageData(canvas.width, canvas.height);
+  // dark strokes on white: ink = #1f2328
+  flat.forEach((p, i) => { const t = (p - lo) / (hi - lo || 1); data.data.set([255 - t * 224, 255 - t * 220, 255 - t * 215, 255], i * 4); });
+  ctx.putImageData(data, 0, 0);
+}
+
+// ---- batch log with expandable sample rows
+let loggedStep = null, viewRun = null, runsKnown = "";
+const open = new Set();          // seqs whose samples are expanded
+const sampleCache = new Map();   // seq -> samples response (a logged batch never changes)
+async function loadRuns(current) {
+  const runs = await get("/api/runs");
+  const key = runs.map((r) => r.run + (r.live ? "L" : "")).join();
+  if (key === runsKnown) return;
+  runsKnown = key;
+  if (viewRun == null) viewRun = current;
+  $("#run-select").innerHTML = runs.map((r) =>
+    `<option value="${r.run}" ${r.run === viewRun ? "selected" : ""}>Run ${r.run}${r.run === current ? " (this tab)" : r.live ? " (open in another tab)" : ""} · batch size ${r.batch_size} · ${r.workers} workers</option>`).join("");
+}
+function samplesRow(b) {
+  const wrong = b.samples.filter((x) => !x.correct).length;
+  return `<tr class="detail" data-for="${b.seq}"><td colspan="9"><p class="muted" style="margin:0 0 6px">Sample number · true digit → predicted digit · loss. ${wrong} of ${b.samples.length} predicted wrong.</p><div class="sgrid">${b.samples.slice(0, SHOW_IDS).map((x) =>
+    `<div class="scell${x.correct ? "" : " wrong"}"><b>#${x.sample}</b><span>${x.label} → <b>${x.pred}</b> ${x.correct ? "✓" : "✕"}</span><span>${f3(x.loss)}</span></div>`).join("")}</div>${more(b.samples.length)}</td></tr>`;
+}
+async function loadBatchLog() {
+  const rows = await get(`/api/runs/${viewRun || RUN}/batches?limit=50`);
+  if (!rows.length) { $("#blog").innerHTML = `<tr><td colspan="9" class="muted">No training steps yet.</td></tr>`; return; }
+  $("#blog").innerHTML = rows.map((r) => {
+    const isOpen = open.has(r.seq) && sampleCache.has(r.seq);
+    return `<tr data-seq="${r.seq}" class="${isOpen ? "open" : ""}"><td><button class="exp" aria-expanded="${isOpen}" aria-label="Show the samples used in step ${r.step}" title="Show samples">${isOpen ? "▾" : "▸"}</button></td>
+      <td>${r.step}</td><td>${r.epoch}</td><td>${r.batch}</td><td>${r.worker < 0 ? "main" : r.worker}</td><td>${r.n}</td><td>${f3(r.loss)}</td><td>${pct(r.acc)}</td><td>${r.lsn}</td></tr>`
+      + (isOpen ? samplesRow(sampleCache.get(r.seq)) : "");
+  }).join("");
+}
+$("#blog").addEventListener("click", async (e) => {
+  const btn = e.target.closest(".exp"); if (!btn) return;
+  const tr = btn.closest("tr"), seq = Number(tr.dataset.seq);
+  if (open.has(seq)) {   // collapse
+    open.delete(seq);
+    tr.classList.remove("open"); btn.textContent = "▸"; btn.setAttribute("aria-expanded", "false");
+    tr.nextElementSibling?.classList.contains("detail") && tr.nextElementSibling.remove();
+    return;
+  }
+  open.add(seq);
+  btn.textContent = "…";
+  if (!sampleCache.has(seq)) sampleCache.set(seq, await get(`/api/batches/${seq}/samples`));
+  if (!open.has(seq) || !tr.isConnected) return;
+  tr.classList.add("open"); btn.textContent = "▾"; btn.setAttribute("aria-expanded", "true");
+  tr.insertAdjacentHTML("afterend", samplesRow(sampleCache.get(seq)));
+});
+$("#run-select").onchange = (e) => { viewRun = Number(e.target.value); loadBatchLog(); };
+
+// ---- validation
+async function loadVal() { valSamples = await get(api("/val")); renderVal(); }
+function renderVal() {
+  const byId = new Map((lastEval?.samples || []).map((x) => [x.val_id, x]));
+  $("#vgrid").innerHTML = valSamples.map((v) => {
+    const e = byId.get(v.val_id);
+    const res = e ? `<b>guess ${e.pred} ${e.pred === e.target ? "✓" : "✕"}</b>` : `<span>not checked</span>`;
+    return `<button class="vcell${v.val_id === selected ? " sel" : ""}" data-id="${v.val_id}"><canvas></canvas><span>digit ${v.y}</span>${res}</button>`;
+  }).join("");
+  document.querySelectorAll(".vcell").forEach((b, k) => {
+    draw(b.querySelector("canvas"), valSamples[k].x);
+    b.onclick = () => { selected = Number(b.dataset.id); renderVal(); };
+  });
+  $("#acc").innerHTML = lastEval ? `<b>${pct(lastEval.acc)}</b><span>of these 10 guessed correctly (at step ${lastEval.step}). Click a digit to see the model's confidence.</span>` : "";
+  const e = byId.get(selected);
+  $("#dist").innerHTML = !e ? "" : `<div class="probs">${e.probs.map((p, i) =>
+    `<div class="${i === e.target ? "t" : ""}"><span>${i}</span><span><i style="width:${100 * p}%"></i></span><span>${(100 * p).toFixed(1)}%</span></div>`).join("")}</div>
+    <p class="muted" style="margin-top:4px">How confident the model is that sample #${e.val_id} is each digit 0–9. The true digit (${e.target}) is highlighted.</p>`;
+}
+
+// ---- controls (buttons + keys S, R, E, X)
+const fail = (e) => { $("#last").textContent = "Error: " + e.message; };
+const doStep = () => post(api("/step")).catch(fail);
+const doRun = () => post(S?.running ? api("/pause") : api(`/run?delay_ms=${$("#delay").value}`)).catch(fail);
+const doShuffle = () => post(api("/shuffle")).catch(fail);
+async function doEval() {
+  const r = await post(api("/evaluate")).catch(fail); if (!r) return;
+  lastEval = r;
+  if (selected == null && r.samples.length) selected = r.samples[0].val_id;
+  renderVal();
+}
+$("#btn-step").onclick = doStep;
+$("#btn-run").onclick = doRun;
+$("#btn-eval").onclick = doEval;
+$("#btn-shuffle").onclick = doShuffle;
+$("#delay").oninput = (e) => { $("#delay-v").textContent = e.target.value; if (S?.running) post(api(`/run?delay_ms=${e.target.value}`)); };
+addEventListener("keydown", (e) => {
+  if (!RUN || ended || e.metaKey || e.ctrlKey || e.altKey || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+  const act = { s: doStep, r: doRun, e: doEval, x: doShuffle }[e.key.toLowerCase()];
+  if (act) { e.preventDefault(); act(); }
+});
+
+get("/api/graph").then((g) => {
+  $("#gdesc").textContent = `${g.total_params.toLocaleString()} learned parameters`;
+  $("#graph").innerHTML = g.nodes.map((n) =>
+    `<div class="node${n.op === "placeholder" || n.op === "output" ? " io" : ""}">${n.label}<span>${n.shape ? "[" + n.shape.join(", ") + "]" : n.op}</span></div>`)
+    .join(`<div class="arrow">↓</div>`);
+});
+
+// Every page load starts a new run with a fresh model.
+$("#setup").onsubmit = async (e) => {
+  e.preventDefault();
+  const btn = $("#setup button"); btn.disabled = true; btn.textContent = "Starting…";
+  try {
+    const r = await post("/api/runs", { batch_size: Number($("#cfg-bs").value), workers: Number($("#cfg-w").value) });
+    RUN = r.run;
+    document.title = `mods_ · run ${RUN}`;
+    $("#setup-wrap").remove();
+    poll();
+  } catch (err) {
+    $("#setup-err").textContent = err.message; btn.disabled = false; btn.textContent = "Start training";
+  }
+};
+// Closing or leaving the tab ends its run (stops its DataLoader workers).
+addEventListener("pagehide", () => { if (RUN && !ended) navigator.sendBeacon(api("/close")); });
+$("#cfg-bs").focus();
+</script>
+</body>
+</html>

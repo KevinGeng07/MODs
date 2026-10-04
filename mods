@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# mods_ local deployment: ./mods start | stop | restart | status | logs | open
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+RUN_DIR="$ROOT/.run"
+PID_FILE="$RUN_DIR/mods.pid"
+LOG="$RUN_DIR/mods.log"
+PY="$ROOT/.venv/bin/python"
+PORT="${MODS_PORT:-8000}"
+URL="http://127.0.0.1:$PORT/"
+mkdir -p "$RUN_DIR"
+
+running() { [[ -f "$PID_FILE" ]] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; }
+# On macOS the venv's python is a launcher that runs the real interpreter as a
+# child, so the PID that matters is whichever process listens on the port.
+listener() { lsof -nP -t -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | head -1; }
+serving() { curl -fsS -o /dev/null --max-time 2 "$URL" 2>/dev/null; }
+
+setup() {
+  if [[ ! -x "$PY" ]]; then
+    echo "creating .venv and installing mods_ ..."
+    python3 -m venv "$ROOT/.venv" --system-site-packages
+    "$ROOT/.venv/bin/pip" install -q -e "$ROOT[examples,dev]"
+  fi
+  # Rebuild the database binary when any Go source is newer than it.
+  if [[ ! -x "$ROOT/bin/modsdb" ]] || [[ -n "$(find "$ROOT/db" -name '*.go' -newer "$ROOT/bin/modsdb" -print -quit)" ]]; then
+    echo "building bin/modsdb ..."
+    (cd "$ROOT/db" && go build -o "$ROOT/bin/modsdb" ./cmd/modsdb)
+  fi
+}
+
+start() {
+  if running; then echo "mods_ is already running (pid $(cat "$PID_FILE")) at $URL"; return; fi
+  if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1 || lsof -nP -iTCP:7070 -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "port $PORT or 7070 is in use by another process; stop it first:" >&2
+    lsof -nP -iTCP:"$PORT" -iTCP:7070 -sTCP:LISTEN >&2 || true
+    exit 1
+  fi
+  setup
+  echo "--- start $(date '+%Y-%m-%d %H:%M:%S')" >> "$LOG"
+  local from; from=$(( $(wc -l < "$LOG") + 1 ))  # arithmetic strips macOS wc's padding
+  # nohup + setsid-style detach: the app keeps running after this terminal closes.
+  (cd "$ROOT" && nohup "$PY" examples/mnist_cnn.py --port "$PORT" >> "$LOG" 2>&1 < /dev/null & echo $! > "$PID_FILE")
+  printf "starting"
+  for _ in $(seq 1 300); do
+    if tail -n +"$from" "$LOG" | grep -q "mods_ UI"; then
+      for _ in $(seq 1 20); do [[ -n "$(listener)" ]] && break; sleep 0.5; done
+      listener > "$PID_FILE"
+      echo; echo "mods_ is running at $URL  (pid $(cat "$PID_FILE"), log: .run/mods.log)"; return
+    fi
+    if ! running; then echo; echo "mods_ failed to start; last log lines:" >&2; tail -n 20 "$LOG" >&2; rm -f "$PID_FILE"; exit 1; fi
+    printf "."; sleep 1
+  done
+  echo; echo "still starting after 5 minutes; see .run/mods.log" >&2
+}
+
+stop() {
+  local pid; pid=$(listener)
+  if [[ -z "$pid" ]] && ! running; then echo "mods_ is not running"; rm -f "$PID_FILE"; return; fi
+  [[ -z "$pid" ]] && pid=$(cat "$PID_FILE")
+  echo "$pid" > "$PID_FILE"
+  kill -INT "$pid"          # clean shutdown: ends runs, final database snapshot
+  for _ in $(seq 1 40); do running || break; sleep 0.5; done
+  if running; then kill -TERM "$pid"; sleep 2; fi
+  # wait for modsdb to release its port
+  for _ in $(seq 1 20); do lsof -nP -iTCP:7070 -sTCP:LISTEN >/dev/null 2>&1 || break; sleep 0.5; done
+  rm -f "$PID_FILE"
+  echo "mods_ stopped"
+}
+
+status() {
+  if serving; then echo "running  pid $(listener)  $URL"
+  elif running; then echo "starting  pid $(cat "$PID_FILE")  (not serving yet)"
+  else echo "stopped"; fi
+}
+
+case "${1:-start}" in
+  start) start ;;
+  stop) stop ;;
+  restart) stop; start ;;
+  status) status ;;
+  logs) tail -n 50 -f "$LOG" ;;
+  open) start; open "$URL" ;;
+  *) echo "usage: ./mods start | stop | restart | status | logs | open" >&2; exit 2 ;;
+esac

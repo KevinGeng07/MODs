@@ -1,0 +1,80 @@
+syntax = "proto3";
+package modsdb.v1;
+
+option go_package = "mods/db/gen/modsdbv1;modsdbv1";
+
+// modsdb MVP API. The same messages are the WAL record payloads.
+service ModsDB {
+  rpc CreateTable(CreateTableRequest)   returns (CommitAck);
+  rpc DropTable(DropTableRequest)       returns (CommitAck);
+  rpc GetRows(GetRowsRequest)           returns (Rows);
+  rpc Scan(ScanRequest)                 returns (Rows);      // whole table, optional status filter
+  rpc Apply(WriteBatch)                 returns (CommitAck); // atomic multi-op write
+  rpc FetchAndMark(FetchAndMarkRequest) returns (Rows);      // atomic read + patch (worker fetch)
+
+  rpc CreateCheckpoint(CreateCheckpointRequest)   returns (Checkpoint);
+  rpc ListCheckpoints(Empty)                      returns (CheckpointList);
+  rpc RestoreCheckpoint(RestoreCheckpointRequest) returns (RestoreCheckpointResponse);
+
+  rpc Stats(Empty) returns (StatsResponse);
+}
+
+message Empty {}
+
+enum ColumnType { COLUMN_TYPE_UNSPECIFIED = 0; INT64 = 1; FLOAT64 = 2; TENSOR = 3; }
+
+enum DType { F32 = 0; U8 = 1; }
+message Tensor { repeated int64 shape = 1; bytes data = 2; DType dtype = 3; } // little-endian; F32 by default
+message Value { oneof v { int64 i = 1; double f = 2; Tensor t = 3; } }
+message Column { string name = 1; ColumnType type = 2; }
+message Schema { repeated Column columns = 1; }
+message Row {
+  uint64 id = 1;
+  uint64 version = 2;              // LSN of the row's last write
+  map<string, Value> cols = 3;
+}
+message Rows { repeated Row rows = 1; }
+
+message CreateTableRequest { string table = 1; Schema schema = 2; }
+message DropTableRequest { string table = 1; }
+message GetRowsRequest { string table = 1; repeated uint64 ids = 2; repeated string columns = 3; }
+message ScanRequest {
+  string table = 1;
+  repeated string columns = 2;     // empty = all
+  bool filter = 3;                 // when set, only rows with status == status AND epoch == epoch
+  int64 status = 4;
+  int64 epoch = 5;
+}
+
+message Op {
+  string table = 1;
+  uint64 id = 2;
+  enum Kind { KIND_UNSPECIFIED = 0; PUT = 1; PATCH = 2; INCR = 3; }
+  Kind kind = 3;
+  map<string, Value> cols = 4;     // PUT: full row; PATCH: columns to set; INCR: column -> delta
+}
+message WriteBatch { repeated Op ops = 1; string tag = 2; }
+message CommitAck { uint64 lsn = 1; }
+
+message FetchAndMarkRequest {
+  string table = 1;
+  repeated uint64 ids = 2;
+  map<string, Value> mark = 3;     // patched onto each row after it is read
+  repeated string columns = 4;     // columns to return (pre-mark image)
+  string tag = 5;
+}
+
+message CreateCheckpointRequest { string name = 1; bytes blob = 2; }
+message Checkpoint { string id = 1; string name = 2; uint64 lsn = 3; int64 created_unix_ms = 4; }
+message CheckpointList { repeated Checkpoint checkpoints = 1; }
+message RestoreCheckpointRequest { string id = 1; }
+message RestoreCheckpointResponse { Checkpoint checkpoint = 1; bytes blob = 2; uint64 lsn = 3; }
+
+message StatsResponse {
+  uint64 last_lsn = 1;
+  uint64 last_snapshot_lsn = 2;
+  uint64 wal_bytes = 3;
+  uint32 wal_segments = 4;
+  uint64 commits = 5;
+  uint64 fsyncs = 6;               // commits / fsyncs = average group-commit size
+}
