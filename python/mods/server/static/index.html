@@ -30,7 +30,7 @@
   .tagline { font: 12px var(--mono); }
   .stamp { font: 12px var(--mono); padding-left: 16px; border-left: 1px solid var(--line); }
   .controls { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .speed { display: grid; font: 11.5px var(--mono); } .speed input { width: 120px; accent-color: var(--accent); }
+  .speed { display: grid; font: 11.5px var(--mono); } .speed input { width: 120px; accent-color: var(--text); }
   .counters { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; border-top: 1px solid var(--line); }
   .counters > div { padding: 10px 24px 12px; border-right: 1px solid var(--line); min-width: 0; }
   .counters > div:last-child { border-right: 0; }
@@ -45,9 +45,6 @@
   .tape i.q { background: var(--line2); }
   .tape i.next { background: var(--line2); outline: 1.5px solid var(--text); position: relative; }
   .tape.solid { background: linear-gradient(90deg, var(--text) var(--p), var(--soft) var(--p)); } .tape.solid i { display: none; }
-  .mode { font: 11px var(--mono); color: var(--dim); display: block; margin-bottom: 4px; }
-  .mode::before { content: "○ "; } .mode.running::before { color: var(--accent); } .mode.running::before { content: "● "; animation: blink 1.4s ease-in-out infinite; }
-  @keyframes blink { 50% { opacity: .3; } }
   #loss { font: 600 20px/1.2 var(--mono); }
   @media (max-width: 900px) {
     .counters { grid-template-columns: 1fr 1fr; } .counters > div:nth-child(n+3) { grid-column: 1 / -1; border-top: 1px solid var(--line); }
@@ -160,14 +157,14 @@
     <div class="controls">
       <button id="btn-step" title="Step (S)">Step</button>
       <button id="btn-run" class="ink" title="Run / pause (R)">Run</button>
-      <label class="speed">Pause between steps: <span><span id="delay-v">300</span> ms</span><input id="delay" type="range" min="0" max="1500" step="50" value="300"></label>
+      <label class="speed">Step Interval: <span><span id="delay-v">300</span> ms</span><input id="delay" type="range" min="0" max="1500" step="50" value="300"></label>
     </div>
   </div>
   <div class="counters">
     <div id="c-epoch"><span class="label">Epoch</span><span class="big" id="epoch">—</span></div>
     <div id="c-step"><span class="label">Step</span><span class="big" id="step">—</span></div>
     <div><span class="label" id="batch">Batch —</span><div class="tape" id="tape"></div></div>
-    <div><span class="mode" id="mode">Paused</span><span class="label">Loss (last batch)</span><span id="loss">—</span></div>
+    <div><span class="label">Loss (last batch)</span><span id="loss">—</span></div>
   </div>
 </header>
 
@@ -191,9 +188,9 @@
   </div>
   <div class="col">
     <section>
-      <h2>Validation Check <small>10 random samples the model never trains on</small></h2>
+      <h2>Validation Check</h2>
       <div class="vgrid" id="vgrid"></div>
-      <div class="vbtns"><button id="btn-eval" class="ink" title="Evaluate (E)">Evaluate</button><button id="btn-shuffle" title="Shuffle (X)">Pick 10 new samples</button></div>
+      <div class="vbtns"><button id="btn-eval" class="ink" title="Evaluate (E)">Evaluate</button><button id="btn-shuffle" title="Shuffle (X)">Resample 10</button></div>
       <div id="acc"></div>
       <div id="dist"></div>
     </section>
@@ -236,7 +233,6 @@ let prev = {};
 function bump(id) { const el = $(id); el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); }
 function renderHeader(s) {
   $("#run").textContent = `batch size: ${s.batch_size}. workers: ${s.num_workers}.`;
-  const m = $("#mode"); m.textContent = s.running ? "Running" : "Paused"; m.classList.toggle("running", s.running);
   $("#btn-run").textContent = s.running ? "Pause" : "Run";
   $("#epoch").textContent = s.epoch;
   $("#step").textContent = s.step;
@@ -284,7 +280,7 @@ function render(s) {
 }
 async function poll() {
   if (ended) return;
-  try { render(await get(api("/status"))); } catch (e) { if (!ended) $("#mode").textContent = "offline"; }
+  try { render(await get(api("/status"))); } catch (e) { /* retry on the next poll */ }
   setTimeout(poll, 250);
 }
 
