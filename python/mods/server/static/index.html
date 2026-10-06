@@ -41,10 +41,10 @@
   @keyframes bump { from { opacity: .35; } }
   .tape { display: flex; gap: 1px; height: 20px; margin-top: 8px; }
   .tape i { flex: 1; min-width: 1px; background: var(--soft); }
-  .tape i.done { background: var(--accent); opacity: .8; }
+  .tape i.done { background: var(--text); }
   .tape i.q { background: var(--line2); }
   .tape i.next { background: var(--line2); outline: 1.5px solid var(--text); position: relative; }
-  .tape.solid { background: linear-gradient(90deg, var(--accent) var(--p), var(--soft) var(--p)); } .tape.solid i { display: none; }
+  .tape.solid { background: linear-gradient(90deg, var(--text) var(--p), var(--soft) var(--p)); } .tape.solid i { display: none; }
   .mode { font: 11px var(--mono); color: var(--dim); display: block; margin-bottom: 4px; }
   .mode::before { content: "○ "; } .mode.running::before { color: var(--accent); } .mode.running::before { content: "● "; animation: blink 1.4s ease-in-out infinite; }
   @keyframes blink { 50% { opacity: .3; } }
@@ -54,12 +54,23 @@
     .bar, .counters > div { padding-left: 16px; padding-right: 16px; } .big { font-size: 32px; } }
 
   /* ---- layout */
-  main { display: grid; gap: 16px; padding: 20px 24px 40px; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-items: start; }
+  main { display: grid; gap: 16px; padding: 20px 24px 40px; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
   @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); padding: 16px; } }
-  .col { display: grid; gap: 16px; }
+  .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
   section { background: var(--panel); border: 1px solid var(--line); padding: 14px 16px; min-width: 0; }
   section h2 { margin: 0 0 12px; font: 700 14px var(--mono); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   section h2 small { font: 12px var(--mono); font-weight: 400; }
+
+  /* Desktop screens: fit the page to the window. Training history and the model graph
+     take the spare height; the worker queues scroll if they need more than a third. */
+  @media (min-width: 901px) and (min-height: 700px) {
+    body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    main { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); padding-bottom: 20px; }
+    .col { min-height: 0; overflow-y: auto; }
+    .q-sec { max-height: 36%; overflow-y: auto; }
+    .hist-sec { flex: 1; min-height: 150px; display: flex; flex-direction: column; }
+    .hist-sec .log { flex: 1; max-height: none; }
+  }
 
   /* ---- worker queues */
   .lane { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
@@ -73,8 +84,6 @@
   .ids { display: grid; grid-template-columns: repeat(8, auto); gap: 1px 8px; font: 11px/1.5 var(--mono); color: var(--text); }
   .more { display: block; font: 11px var(--mono); margin-top: 3px; }
   .empty { font: 11px var(--mono); padding: 6px 10px; border: 1px dashed var(--line2); color: var(--faint); }
-  #last { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--dim); }
-  #last b { color: var(--text); font-weight: 600; }
 
   /* ---- modsdb */
   .db { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
@@ -111,11 +120,14 @@
   .probs .t { color: var(--text); } .probs .t i { background: var(--accent); }
 
   /* ---- graph */
-  .graph { display: grid; justify-items: center; }
-  .node { width: 100%; max-width: 220px; border: 1px solid var(--line2); padding: 5px 10px; font: 600 11.5px var(--mono); background: var(--panel); }
+  .graph-sec { flex: 1; display: flex; flex-direction: column; }
+  /* contain: size so the bars fill whatever height is left instead of setting it */
+  .graph { flex: 1; min-height: 120px; contain: size; display: flex; align-items: stretch; gap: 1px; }
+  .node { flex: 1 1 0; min-width: 0; border: 1px solid var(--line2); padding: 6px 0; font: 600 10px/1.3 var(--mono); letter-spacing: -.04em; background: var(--panel);
+    display: flex; flex-direction: column; justify-content: center; text-align: center; white-space: pre-line; overflow-wrap: anywhere; overflow: hidden; }
   .node.io { border-style: dashed; }
-  .node span { display: block; color: var(--faint); font-weight: 400; }
-  .arrow { color: var(--faint); font: 11px var(--mono); line-height: 1.3; }
+  .node span { margin-top: 4px; color: var(--faint); font-weight: 400; }
+  .arrow { align-self: center; color: var(--faint); font: 9px var(--mono); }
 
   /* ---- overlays */
   .overlay { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--bg) 96%, transparent); }
@@ -129,7 +141,7 @@
 <body>
 <div id="setup-wrap" class="overlay">
   <form id="setup" class="modal">
-    <h2>mods_ · start a new run</h2>
+    <h2>mods_ · Start Training</h2>
     <label>Batch size (samples per training step) <input id="cfg-bs" type="number" min="1" max="999" value="64" required></label>
     <label>Data loader workers (processes that prepare batches) <input id="cfg-w" type="number" min="0" max="8" value="2" required></label>
     <p id="setup-err" class="no" style="margin:0; font-size:12px"></p>
@@ -137,7 +149,7 @@
   </form>
 </div>
 <div id="ended" class="overlay" hidden>
-  <div class="modal"><h2>Run ended</h2><p id="ended-msg" class="muted"></p><button class="ink" onclick="location.reload()">Start a new run</button></div>
+  <div class="modal"><h2>Run Ended</h2><p id="ended-msg" class="muted"></p><button class="ink" onclick="location.reload()">Start again</button></div>
 </div>
 
 <header>
@@ -161,33 +173,32 @@
 
 <main>
   <div class="col">
-    <section>
-      <h2>Batches waiting in each worker <small id="qdesc"></small></h2>
+    <section class="q-sec">
+      <h2>Batches Waiting In Each Worker <small id="qdesc"></small></h2>
       <div id="lanes"></div>
-      <div id="last">No batch consumed yet.</div>
     </section>
-    <section>
-      <h2>Training history <small>last 50 steps</small><select id="run-select" aria-label="Run" style="margin-left:auto"></select></h2>
+    <section class="hist-sec">
+      <h2>Training History <small>last 50 steps</small></h2>
       <div class="log"><table>
-        <thead><tr><th></th><th>Step</th><th>Epoch</th><th>Batch</th><th>Worker</th><th>Samples</th><th>Loss</th><th>Accuracy</th><th>Log position</th></tr></thead>
+        <thead><tr><th></th><th>Step</th><th>Epoch</th><th>Batch</th><th>Worker</th><th>Samples</th><th>Loss</th><th>Accuracy</th><th>Log Position</th></tr></thead>
         <tbody id="blog"><tr><td colspan="9" class="muted">No training steps yet.</td></tr></tbody>
       </table></div>
     </section>
     <section>
-      <h2>Database (modsdb)</h2>
+      <h2>Database (Modsdb)</h2>
       <div class="db" id="db"></div>
     </section>
   </div>
   <div class="col">
     <section>
-      <h2>Validation check <small>10 random samples the model never trains on</small></h2>
+      <h2>Validation Check <small>10 random samples the model never trains on</small></h2>
       <div class="vgrid" id="vgrid"></div>
       <div class="vbtns"><button id="btn-eval" class="ink" title="Evaluate (E)">Evaluate</button><button id="btn-shuffle" title="Shuffle (X)">Pick 10 new samples</button></div>
       <div id="acc"></div>
       <div id="dist"></div>
     </section>
-    <section>
-      <h2>Model layers <small id="gdesc"></small></h2>
+    <section class="graph-sec">
+      <h2>Model Layers <small id="gdesc"></small></h2>
       <div class="graph" id="graph"></div>
     </section>
   </div>
@@ -258,9 +269,6 @@ function renderQueues(s) {
     for (let i = w.batches.length; i < per; i++) h += `<span class="empty">preparing…</span>`;
     return h + "</div></div>";
   }).join("");
-  const l = s.last_step;
-  $("#last").innerHTML = l ? `Last step (${l.step}) trained on batch ${l.batch} from ${l.worker < 0 ? "the main process" : "worker " + l.worker}: loss ${f3(l.loss)}, ${pct(l.acc)} correct. Saved to the database at log position ${l.lsn}.`
-    : "No training steps yet. Press Step to train on the next batch.";
   const d = s.db;
   $("#db").innerHTML = [["Latest log position (LSN)", d.last_lsn.toLocaleString()], ["Last snapshot at position", d.last_snapshot_lsn || "none yet"],
     ["Write-ahead log size", `${(d.wal_bytes / 1048576).toFixed(1)} MB`], ["Writes per disk sync", d.fsyncs ? (d.commits / d.fsyncs).toFixed(2) : "—"]]
@@ -271,8 +279,7 @@ function render(s) {
   S = s;
   renderHeader(s);
   renderQueues(s);
-  loadRuns(s.run);
-  if (s.step !== loggedStep) { loggedStep = s.step; if (viewRun == null || viewRun === s.run) loadBatchLog(); }
+  if (s.step !== loggedStep) { loggedStep = s.step; loadBatchLog(); }
   if (s.val_set.join() !== valKey) { valKey = s.val_set.join(); lastEval = null; selected = null; loadVal(); }
 }
 async function poll() {
@@ -293,25 +300,16 @@ function draw(canvas, img) {
 }
 
 // ---- batch log with expandable sample rows
-let loggedStep = null, viewRun = null, runsKnown = "";
+let loggedStep = null;
 const open = new Set();          // seqs whose samples are expanded
 const sampleCache = new Map();   // seq -> samples response (a logged batch never changes)
-async function loadRuns(current) {
-  const runs = await get("/api/runs");
-  const key = runs.map((r) => r.run + (r.live ? "L" : "")).join();
-  if (key === runsKnown) return;
-  runsKnown = key;
-  if (viewRun == null) viewRun = current;
-  $("#run-select").innerHTML = runs.map((r) =>
-    `<option value="${r.run}" ${r.run === viewRun ? "selected" : ""}>Run ${r.run}${r.run === current ? " (this tab)" : r.live ? " (open in another tab)" : ""} · batch size ${r.batch_size} · ${r.workers} workers</option>`).join("");
-}
 function samplesRow(b) {
   const wrong = b.samples.filter((x) => !x.correct).length;
   return `<tr class="detail" data-for="${b.seq}"><td colspan="9"><p class="muted" style="margin:0 0 6px">Sample number · true digit → predicted digit · loss. ${wrong} of ${b.samples.length} predicted wrong.</p><div class="sgrid">${b.samples.slice(0, SHOW_IDS).map((x) =>
     `<div class="scell${x.correct ? "" : " wrong"}"><b>#${x.sample}</b><span>${x.label} → <b>${x.pred}</b> ${x.correct ? "✓" : "✕"}</span><span>${f3(x.loss)}</span></div>`).join("")}</div>${more(b.samples.length)}</td></tr>`;
 }
 async function loadBatchLog() {
-  const rows = await get(`/api/runs/${viewRun || RUN}/batches?limit=50`);
+  const rows = await get(api("/batches?limit=50"));
   if (!rows.length) { $("#blog").innerHTML = `<tr><td colspan="9" class="muted">No training steps yet.</td></tr>`; return; }
   $("#blog").innerHTML = rows.map((r) => {
     const isOpen = open.has(r.seq) && sampleCache.has(r.seq);
@@ -336,7 +334,6 @@ $("#blog").addEventListener("click", async (e) => {
   tr.classList.add("open"); btn.textContent = "▾"; btn.setAttribute("aria-expanded", "true");
   tr.insertAdjacentHTML("afterend", samplesRow(sampleCache.get(seq)));
 });
-$("#run-select").onchange = (e) => { viewRun = Number(e.target.value); loadBatchLog(); };
 
 // ---- validation
 async function loadVal() { valSamples = await get(api("/val")); renderVal(); }
@@ -359,7 +356,7 @@ function renderVal() {
 }
 
 // ---- controls (buttons + keys S, R, E, X)
-const fail = (e) => { $("#last").textContent = "Error: " + e.message; };
+const fail = (e) => { $("#qdesc").textContent = "Error: " + e.message; };
 const doStep = () => post(api("/step")).catch(fail);
 const doRun = () => post(S?.running ? api("/pause") : api(`/run?delay_ms=${$("#delay").value}`)).catch(fail);
 const doShuffle = () => post(api("/shuffle")).catch(fail);
@@ -383,18 +380,17 @@ addEventListener("keydown", (e) => {
 get("/api/graph").then((g) => {
   $("#gdesc").textContent = `${g.total_params.toLocaleString()} learned parameters`;
   $("#graph").innerHTML = g.nodes.map((n) =>
-    `<div class="node${n.op === "placeholder" || n.op === "output" ? " io" : ""}">${n.label}<span>${n.shape ? "[" + n.shape.join(", ") + "]" : n.op}</span></div>`)
-    .join(`<div class="arrow">↓</div>`);
+    `<div class="node${n.op === "placeholder" || n.op === "output" ? " io" : ""}">${n.label.replace(": ", "\n")}<span>${n.shape ? "[" + n.shape.join(", ") + "]" : n.op}</span></div>`)
+    .join(`<div class="arrow">→</div>`);
 });
 
-// Every page load starts a new run with a fresh model.
+// Every page load starts the run with a fresh model, replacing any earlier one.
 $("#setup").onsubmit = async (e) => {
   e.preventDefault();
   const btn = $("#setup button"); btn.disabled = true; btn.textContent = "Starting…";
   try {
     const r = await post("/api/runs", { batch_size: Number($("#cfg-bs").value), workers: Number($("#cfg-w").value) });
     RUN = r.run;
-    document.title = `mods_ · run ${RUN}`;
     $("#setup-wrap").remove();
     poll();
   } catch (err) {

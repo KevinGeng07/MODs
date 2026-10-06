@@ -1,9 +1,9 @@
 """mods_ demo: a small CNN learning MNIST, every image served from modsdb.
 Open http://127.0.0.1:8000: every page load asks for batch size and workers and
-starts a new run with a fresh model; earlier runs' history stays in modsdb.
+starts the one run with a fresh model; the previous run and its history are dropped.
 
     .venv/bin/python examples/mnist_cnn.py                      # start the server
-    .venv/bin/python examples/mnist_cnn.py --wipe               # delete all previous runs first
+    .venv/bin/python examples/mnist_cnn.py --wipe               # delete the database first
     .venv/bin/python examples/mnist_cnn.py --init weights.pt    # every run starts from these weights
 
 The first start downloads MNIST (about 11 MB) into ./data/mnist and loads it into modsdb.
@@ -50,7 +50,7 @@ def main():
     p.add_argument("--data-dir", default=str(Path(__file__).resolve().parents[1] / "modsdb-data"))
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("--init", help="state_dict .pt file with precomputed weights")
-    p.add_argument("--wipe", action="store_true", help="delete the database (all previous runs) first")
+    p.add_argument("--wipe", action="store_true", help="delete the database first")
     a = p.parse_args()
 
     data_dir = Path(a.data_dir)
@@ -74,15 +74,14 @@ def main():
             print(f"loaded {len(train)} train / {len(test)} validation images into modsdb", flush=True)
 
         def make_model():
-            """A fresh model for every run (every page load)."""
+            """A fresh model every time the page starts the run."""
             model = MnistCNN()
             if a.init:
                 model.load_state_dict(torch.load(a.init))
             return model, torch.optim.SGD(model.parameters(), lr=0.02, momentum=0.9)
 
-        runs = client.get_rows("meta", [1])[0]["runs"]
         app = create_app(client, make_model, model_graph(MnistCNN(), torch.zeros(1, 1, 28, 28)))
-        print(f"mods_ UI: http://127.0.0.1:{a.port}/  ({runs} earlier runs in modsdb)", flush=True)
+        print(f"mods_ UI: http://127.0.0.1:{a.port}/", flush=True)
         uvicorn.run(app, host="127.0.0.1", port=a.port, log_level="warning")
     finally:
         db.stop()

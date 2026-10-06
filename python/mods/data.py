@@ -1,10 +1,10 @@
 """Tables, a deterministic batch sampler, and a Dataset that marks rows QUEUED
 in modsdb as DataLoader workers prefetch them.
 
-Layout: `train` / `val` hold the dataset (x, y). Each run (one browser tab)
-gets its own table `run<N>` with one row per training sample holding only that
-run's training state, so concurrent runs never touch each other's rows. The
-pixels are read from `train`; a run's table is dropped when the run ends."""
+Layout: `train` / `val` hold the dataset (x, y). Each run gets its own table
+`run<N>` with one row per training sample holding only that run's training
+state. The pixels are read from `train`; a run's table is dropped when the run
+ends. The history tables hold only the current run (see clear_history)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from typing import Sequence
 import torch
 from torch.utils.data import Dataset, get_worker_info
 
-from .db import IDLE, QUEUED, put
+from .db import IDLE, QUEUED, DBError, put
 
 DATA_SCHEMA = {"x": "tensor", "y": "int64"}
 RUN_ROWS_SCHEMA = {"status": "int64", "epoch": "int64", "worker": "int64", "batch": "int64", "seen": "int64",
@@ -46,14 +46,29 @@ def sample_row_id(sid: int, k: int) -> int:
     return sid * 1000 + k
 
 
+HISTORY_TABLES = (("runs", RUNS_SCHEMA), ("steps", STEPS_SCHEMA), ("batch_samples", BATCH_SAMPLES_SCHEMA),
+                  ("valset", VALSET_SCHEMA), ("evals", EVALS_SCHEMA))
+
+
 def setup_tables(client) -> None:
     """Create any missing shared tables (CreateTable is idempotent)."""
-    for name, schema in (("train", DATA_SCHEMA), ("val", DATA_SCHEMA), ("meta", META_SCHEMA), ("runs", RUNS_SCHEMA),
-                         ("steps", STEPS_SCHEMA), ("batch_samples", BATCH_SAMPLES_SCHEMA),
-                         ("valset", VALSET_SCHEMA), ("evals", EVALS_SCHEMA)):
+    for name, schema in (("train", DATA_SCHEMA), ("val", DATA_SCHEMA), ("meta", META_SCHEMA), *HISTORY_TABLES):
         client.create_table(name, schema)
     if not client.get_rows("meta", [1]):
         client.apply([put("meta", 1, {"runs": 0})])
+
+
+def clear_history(client) -> None:
+    """Forget every earlier run: drop their state tables and empty the history tables.
+    The run counter in `meta` keeps counting, so an old tab can never reach a new run."""
+    for r in client.scan("runs"):
+        try:
+            client.drop_table(run_table(r.id))
+        except DBError:  # already dropped when that run ended
+            pass
+    for name, schema in HISTORY_TABLES:
+        client.drop_table(name)
+        client.create_table(name, schema)
 
 
 def load_samples(client, table: str, xs: torch.Tensor, ys: Sequence[int]) -> None:

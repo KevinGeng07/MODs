@@ -1,9 +1,9 @@
-"""FastAPI app. Every page load starts a new run (POST /api/runs) with its own
-fresh model; the tab then drives that run through /api/runs/{run}/...
+"""FastAPI app. There is only ever one run: every page load starts it
+(POST /api/runs) with a fresh model, ending and forgetting the previous one.
+The tab then drives it through /api/runs/{run}/...; an older tab gets 410.
 
-Runs end when their tab closes (beacon), goes silent for IDLE_S seconds, or
-when more than MAX_LIVE runs are live. Nothing is cached: every response is
-Cache-Control: no-store."""
+The run ends when its tab closes (beacon) or goes silent for IDLE_S seconds.
+Nothing is cached: every response is Cache-Control: no-store."""
 
 from __future__ import annotations
 
@@ -17,13 +17,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from ..data import MAX_BATCH, run_table
+from ..data import MAX_BATCH, clear_history
 from ..db import DBError
-from ..session import Session, batch_log, batch_samples, list_runs
+from ..session import Session, batch_log, batch_samples
 
 INDEX = Path(__file__).parent / "static" / "index.html"
 IDLE_S = 120  # background tabs may only poll once a minute
-MAX_LIVE = 4
 
 
 class NewRun(BaseModel):
@@ -33,62 +32,51 @@ class NewRun(BaseModel):
 
 
 class Runs:
-    """Live sessions keyed by run number."""
+    """Holds the one live run, if any."""
 
     def __init__(self, client, make_model: Callable):
         self.client, self.make_model = client, make_model
-        self.live: dict[int, Session] = {}
-        self.seen: dict[int, float] = {}
+        self.live: Session | None = None
+        self.seen = 0.0
         self.lock = threading.Lock()
-        # Runs left over from a previous server process are over: free their state tables.
-        for r in list_runs(client):
-            try:
-                client.drop_table(run_table(r["run"]))
-            except DBError:
-                pass
 
     def start(self, cfg: NewRun) -> Session:
-        with self.lock:  # run numbers come from a shared counter: create one at a time
-            while len(self.live) >= MAX_LIVE:
-                self._end(min(self.seen, key=self.seen.get))
+        with self.lock:
+            self._end()
+            clear_history(self.client)
             model, optimizer = self.make_model()
-            s = Session(self.client, model, optimizer, batch_size=cfg.batch_size, num_workers=cfg.workers,
-                        prefetch_factor=cfg.prefetch)
-            self.live[s.run], self.seen[s.run] = s, time.monotonic()
-            return s
+            self.live = Session(self.client, model, optimizer, batch_size=cfg.batch_size, num_workers=cfg.workers,
+                                prefetch_factor=cfg.prefetch)
+            self.seen = time.monotonic()
+            return self.live
 
     def get(self, run: int) -> Session:
         with self.lock:
-            s = self.live.get(run)
-            if s is None:
-                raise HTTPException(410, f"run {run} has ended; reload the page to start a new run")
-            self.seen[run] = time.monotonic()
-            return s
+            if self.live is None or self.live.run != run:
+                raise HTTPException(410, "this run has ended; reload the page to start again")
+            self.seen = time.monotonic()
+            return self.live
 
-    def _end(self, run: int) -> None:
-        s = self.live.pop(run, None)
-        self.seen.pop(run, None)
-        if s is not None:
-            threading.Thread(target=s.close, daemon=True).start()  # worker shutdown takes a moment
+    def _end(self) -> None:
+        if self.live is not None:
+            self.live.close()
+            self.live = None
 
     def end(self, run: int) -> None:
         with self.lock:
-            self._end(run)
+            if self.live is not None and self.live.run == run:
+                self._end()
 
     def reap(self) -> None:
         while True:
             time.sleep(5)
             with self.lock:
-                for run in [r for r, t in self.seen.items() if time.monotonic() - t > IDLE_S]:
-                    self._end(run)
+                if self.live is not None and time.monotonic() - self.seen > IDLE_S:
+                    self._end()
 
     def end_all(self) -> None:
         with self.lock:
-            sessions = list(self.live.values())
-            self.live.clear()
-            self.seen.clear()
-        for s in sessions:
-            s.close()
+            self._end()
 
 
 def create_app(client, make_model: Callable, graph: dict) -> FastAPI:
@@ -124,10 +112,6 @@ def create_app(client, make_model: Callable, graph: dict) -> FastAPI:
     @app.get("/api/graph")
     def get_graph():
         return graph
-
-    @app.get("/api/runs")
-    def all_runs():
-        return list_runs(client, set(runs.live))
 
     @app.post("/api/runs")
     def new_run(cfg: NewRun):
@@ -172,10 +156,9 @@ def create_app(client, make_model: Callable, graph: dict) -> FastAPI:
     def shuffle(run: int):
         return {"val_set": guard(runs.get(run).shuffle)}
 
-    # History works for any run, live or ended.
     @app.get("/api/runs/{run}/batches")
     def batches(run: int, limit: int = 50):
-        return batch_log(client, run, min(limit, 1000))
+        return batch_log(client, runs.get(run).run, min(limit, 1000))
 
     @app.get("/api/batches/{seq}/samples")
     def samples(seq: int):

@@ -2,7 +2,7 @@
 table (`run<N>`), and a DataLoader feeding from it. Every public method takes
 the session's lock, so HTTP handlers and the Run loop never race.
 
-The module-level history functions read any run's logs, live or ended."""
+The module-level history functions read a run's logged batches."""
 
 from __future__ import annotations
 
@@ -194,11 +194,7 @@ class Session:
                 "queue": self.queue(), "db": self.client.stats()}
 
 
-# ---- history (any run, live or ended)
-
-def list_runs(client, live: set[int] = frozenset()) -> list[dict]:
-    return [{"run": r.id, **r, "live": r.id in live} for r in reversed(client.scan("runs"))]
-
+# ---- history
 
 def batch_log(client, run: int, limit: int = 50) -> list[dict]:
     """A run's most recent batches, newest first (looked up by id range, no scan)."""

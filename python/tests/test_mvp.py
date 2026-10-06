@@ -8,7 +8,7 @@ from mods.db import CONSUMED, QUEUED, Client, incr, put
 from mods.graph import model_graph
 from mods.launch import DBProcess
 from mods.server.app import create_app
-from mods.session import Session, batch_log, batch_samples, list_runs
+from mods.session import Session, batch_log, batch_samples
 
 from conftest import tiny_model
 
@@ -58,7 +58,7 @@ def test_worker_queue_step_eval_shuffle(client):
         s.close()
 
 
-def test_runs_are_isolated_and_kept(client):
+def test_sessions_are_isolated(client):
     m1, o1 = tiny_model()
     m2, o2 = tiny_model()
     a = Session(client, m1, o1, batch_size=8, num_workers=0)
@@ -79,29 +79,31 @@ def test_runs_are_isolated_and_kept(client):
     finally:
         a.close()
         b.close()
-    # History outlives the sessions.
-    assert [(r["run"], r["batch_size"], r["step"]) for r in list_runs(client)] == [(2, 5, 1), (1, 8, 3)]
 
 
 def test_http_api(client):
     graph = model_graph(tiny_model()[0], torch.zeros(1, 4, 4))
     with TestClient(create_app(client, tiny_model, graph)) as tc:
         page = tc.get("/")
-        assert "mods_ · start a new run" in page.text and page.headers["cache-control"] == "no-store"
+        assert "mods_ · Start Training" in page.text and page.headers["cache-control"] == "no-store"
         # Exactly one setup popup; a copy inside a JS template would cover the page on every render.
         script = page.text[page.text.index("<script>"):]
         assert page.text.count('id="setup-wrap"') == 1 and 'class="overlay"' not in script
         assert tc.post("/api/runs", json={"batch_size": 0, "workers": 0}).status_code == 422
 
+        r0 = tc.post("/api/runs", json={"batch_size": 4, "workers": 0}).json()["run"]
+        tc.post(f"/api/runs/{r0}/step")
+        # Starting again replaces the run: the old one is gone and so is its history.
         r1 = tc.post("/api/runs", json={"batch_size": 8, "workers": 0}).json()["run"]
-        r2 = tc.post("/api/runs", json={"batch_size": 4, "workers": 0}).json()["run"]
-        assert r1 != r2
+        assert r1 != r0
+        assert tc.get(f"/api/runs/{r0}/status").status_code == 410
+        assert tc.get(f"/api/runs/{r0}/batches").status_code == 410
+        assert client.scan("steps") == [] and [r.id for r in client.scan("runs")] == [r1]
 
         step = tc.post(f"/api/runs/{r1}/step").json()
         st = tc.get(f"/api/runs/{r1}/status")
         assert st.headers["cache-control"] == "no-store"
         assert st.json()["step"] == 1 and st.json()["batch_size"] == 8
-        assert tc.get(f"/api/runs/{r2}/status").json()["step"] == 0  # separate model and position
         assert len(tc.get(f"/api/runs/{r1}/val").json()) == 10
         assert len(tc.post(f"/api/runs/{r1}/evaluate").json()["samples"]) == 10
         assert len(tc.post(f"/api/runs/{r1}/shuffle").json()["val_set"]) == 10
@@ -110,13 +112,10 @@ def test_http_api(client):
         assert [x["step"] for x in log] == [1] and log[0]["lsn"] == step["lsn"]
         assert len(tc.get(f"/api/batches/{log[0]['seq']}/samples").json()["samples"]) == 8
 
-        # Closing a tab ends its run; its history stays readable.
+        # Closing the tab ends the run.
         tc.post(f"/api/runs/{r1}/close")
         assert tc.get(f"/api/runs/{r1}/status").status_code == 410
         assert tc.post(f"/api/runs/{r1}/step").status_code == 410
-        assert [x["step"] for x in tc.get(f"/api/runs/{r1}/batches").json()] == [1]
-        live = {r["run"]: r["live"] for r in tc.get("/api/runs").json()}
-        assert live == {r1: False, r2: True}
 
 
 def test_batch_log_shows_latest_50_and_indices(client):

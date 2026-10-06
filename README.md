@@ -13,8 +13,8 @@ layers.
 
 ## What you can do
 
-- Pick a batch size and number of workers each time you open the page. Every tab trains its own
-  fresh model.
+- Pick a batch size and number of workers each time you open the page. Opening the page starts
+  the one run with a fresh model; the previous run and its history are dropped.
 - Step through training one batch at a time, or let it run.
 - See which batches each worker has prepared and which one is next.
 - Check the model on 10 random validation images, and see how confident it is for each digit.
