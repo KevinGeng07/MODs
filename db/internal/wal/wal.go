@@ -26,8 +26,6 @@ const (
 	TypeCreateTable uint8 = 1
 	TypeDropTable   uint8 = 2
 	TypeWriteBatch  uint8 = 3
-	TypeCheckpoint  uint8 = 4
-	TypeRestore     uint8 = 5
 )
 
 const (
@@ -133,10 +131,10 @@ type ReplayResult struct {
 }
 
 // Replay calls fn for every valid record with LSN > from, in order. A damaged
-// record in the last segment is treated as a torn write: the file is truncated
-// there. Damage in an earlier segment returns ErrCorrupt unless force is set,
-// in which case the log is cut at that point and later segments are removed.
-func Replay(dir string, from uint64, force bool, fn func(Record) error) (ReplayResult, error) {
+// record in the last segment is treated as a torn write (a crash mid-append)
+// and the file is truncated there. Damage in an earlier segment cannot be a
+// torn write, so it returns ErrCorrupt.
+func Replay(dir string, from uint64, fn func(Record) error) (ReplayResult, error) {
 	var res ReplayResult
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return res, err
@@ -157,17 +155,11 @@ func Replay(dir string, from uint64, force bool, fn func(Record) error) (ReplayR
 		if cutAt < 0 {
 			continue
 		}
-		last := i == len(segs)-1
-		if !last && !force {
+		if i != len(segs)-1 {
 			return res, fmt.Errorf("%w: %s at offset %d", ErrCorrupt, filepath.Base(s.path), cutAt)
 		}
 		if err := os.Truncate(s.path, cutAt); err != nil {
 			return res, err
-		}
-		for _, later := range segs[i+1:] {
-			if err := os.Remove(later.path); err != nil {
-				return res, err
-			}
 		}
 		res.TruncatedTail = true
 		return res, syncDir(dir)
@@ -212,7 +204,6 @@ type Writer struct {
 	buf        *bufio.Writer
 	active     segment
 	activeSize int64
-	closedSize int64 // bytes in non-active segments
 }
 
 // OpenWriter starts a fresh segment whose first record will be nextLSN.
@@ -221,15 +212,6 @@ func OpenWriter(dir string, nextLSN uint64, maxSegment int64) (*Writer, error) {
 		maxSegment = DefaultSegment
 	}
 	w := &Writer{dir: dir, maxSegment: maxSegment}
-	segs, err := listSegments(dir)
-	if err != nil {
-		return nil, err
-	}
-	for _, s := range segs {
-		if st, err := os.Stat(s.path); err == nil {
-			w.closedSize += st.Size()
-		}
-	}
 	if err := w.startSegment(nextLSN); err != nil {
 		return nil, err
 	}
@@ -247,12 +229,7 @@ func (w *Writer) startSegment(first uint64) error {
 		f.Close()
 		return err
 	}
-	// A leftover file with this name (e.g. empty segment from a previous run)
-	// is reused; its bytes are counted as active rather than closed.
-	w.closedSize -= st.Size()
-	if w.closedSize < 0 {
-		w.closedSize = 0
-	}
+	// A leftover file with this name (an empty segment from a previous run) is reused.
 	w.f, w.buf = f, bufio.NewWriterSize(f, 1<<20)
 	w.active, w.activeSize = segment{first: first, path: path}, st.Size()
 	return syncDir(w.dir)
@@ -277,12 +254,8 @@ func (w *Writer) rotate(nextLSN uint64) error {
 	if err := w.f.Close(); err != nil {
 		return err
 	}
-	w.closedSize += w.activeSize
 	return w.startSegment(nextLSN)
 }
-
-// Flush writes buffered records to the OS without fsync.
-func (w *Writer) Flush() error { return w.buf.Flush() }
 
 // Sync flushes and fsyncs the active segment.
 func (w *Writer) Sync() error {
@@ -303,29 +276,15 @@ func (w *Writer) TruncateThrough(lsn uint64) error {
 		if s.path == w.active.path || i+1 >= len(segs) || segs[i+1].first > lsn+1 {
 			continue
 		}
-		st, err := os.Stat(s.path)
-		if err != nil {
-			return err
-		}
 		if err := os.Remove(s.path); err != nil {
 			return err
 		}
-		w.closedSize -= st.Size()
 		removed = true
 	}
 	if removed {
 		return syncDir(w.dir)
 	}
 	return nil
-}
-
-// Size is the total bytes across all segments.
-func (w *Writer) Size() int64 { return w.closedSize + w.activeSize }
-
-// Segments counts segment files on disk.
-func (w *Writer) Segments() int {
-	segs, _ := listSegments(w.dir)
-	return len(segs)
 }
 
 func (w *Writer) Close() error {

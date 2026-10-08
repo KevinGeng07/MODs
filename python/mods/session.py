@@ -1,6 +1,7 @@
-"""A training session is one run: a fresh model, its own copy of the sample
-table (`run<N>`), and a DataLoader feeding from it. Every public method takes
-the session's lock, so HTTP handlers and the Run loop never race.
+"""A training session is one run: a fresh model, its own sample-state table
+(`run<N>`), and a DataLoader feeding from the user's training Dataset. Every
+public method takes the session's lock, so HTTP handlers and the Run loop never
+race.
 
 The module-level history functions read a run's logged batches."""
 
@@ -22,31 +23,32 @@ VAL_SET_SIZE = 10
 
 
 class Session:
-    def __init__(self, client, model, optimizer, batch_size=16, num_workers=2, prefetch_factor=2, seed=0):
-        """Start a new run. Callers must not create two Sessions concurrently
-        (the run number is allocated from a shared counter)."""
+    def __init__(self, client, model, optimizer, train, val, batch_size=16, num_workers=2, prefetch_factor=2,
+                 seed=0):
+        """Start a new run on `train` / `val`, Datasets of (x, label). Callers must
+        not create two Sessions concurrently (the run number is allocated from a
+        shared counter)."""
         if not 1 <= batch_size <= MAX_BATCH:
             raise ValueError(f"batch_size must be 1..{MAX_BATCH}")
         self.client, self.model, self.optimizer = client, model, optimizer
+        self.train, self.val = train, val
         self.batch_size, self.num_workers, self.prefetch_factor = batch_size, num_workers, prefetch_factor
         self.lock = threading.RLock()
         self.running, self.delay_ms, self.last_step = False, 300, None
         self.closed = False
         self.epoch = self.step_no = self.batch = self.evals = 0
 
-        # One atomic commit: allocate the run, register it, and give it a fresh
-        # copy of the dataset with clean per-row state.
+        # One atomic commit: allocate the run, register it, and give it one
+        # clean state row per training sample (row i + 1 = sample i).
         self.run = client.get_rows("meta", [1])[0]["runs"] + 1
         self.table = run_table(self.run)
         client.create_table(self.table, RUN_ROWS_SCHEMA)
-        train_ids = [r.id for r in client.scan("train", columns=["y"])]
+        train_ids = range(1, len(train) + 1)
         client.apply([patch("meta", 1, {"runs": self.run}),
-                      put("runs", self.run, {"batch_size": batch_size, "workers": num_workers,
-                                             "prefetch": prefetch_factor, "started_ms": int(time.time() * 1000),
-                                             "epoch": 0, "step": 0, "batch": 0}),
+                      put("runs", self.run, {"batch_size": batch_size, "workers": num_workers, "step": 0}),
                       *fresh_run_rows(self.table, train_ids)], tag=f"run:{self.run}")
 
-        self.val_ids = [r.id for r in client.scan("val", columns=["y"])]
+        self.val_ids = list(range(len(val)))
         self._shuffle_rng = random.Random(seed + self.run)
         self.shuffle()
         self.sampler = EpochSampler(train_ids, batch_size, seed + self.run)
@@ -60,7 +62,7 @@ class Session:
         if self.loader is None:
             kw = dict(num_workers=self.num_workers, prefetch_factor=self.prefetch_factor, persistent_workers=True,
                       multiprocessing_context="spawn") if self.num_workers else {}
-            self.loader = DataLoader(DBDataset(self.client, self.table), batch_sampler=self.sampler,
+            self.loader = DataLoader(DBDataset(self.client, self.table, self.train), batch_sampler=self.sampler,
                                      collate_fn=collate, **kw)
         with torch.random.fork_rng(devices=[]):  # iter() draws from the global RNG
             self.it = iter(self.loader)  # workers start prefetching (and marking rows QUEUED) now
@@ -116,7 +118,7 @@ class Session:
             ops.append(put("steps", sid, {"run": self.run, "step": self.step_no, "epoch": self.epoch,
                                           "batch": b["batch"], "worker": b["worker"], "n": len(preds),
                                           "loss": loss, "acc": acc}))
-            ops.append(patch("runs", self.run, {"epoch": self.epoch, "step": self.step_no, "batch": self.batch}))
+            ops.append(patch("runs", self.run, {"step": self.step_no}))
             lsn = self.client.apply(ops, tag=f"consume:{self.table}")
             self.last_step = {"step": self.step_no, "seq": sid, "batch": b["batch"], "worker": b["worker"],
                               "ids": b["ids"], "loss": loss, "acc": acc, "lsn": lsn}
@@ -142,10 +144,10 @@ class Session:
         distributions are returned to the caller and not persisted."""
         with self.lock:
             self._check_open()
-            rows = {r.id: r for r in self.client.get_rows("val", self.val_set, ["x", "y"])}
-            ids = [i for i in self.val_set if i in rows]
-            x = torch.stack([as_input(rows[i]["x"]) for i in ids])
-            y = torch.tensor([rows[i]["y"] for i in ids])
+            ids = list(self.val_set)
+            samples = [self.val[i] for i in ids]
+            x = torch.stack([as_input(x) for x, _ in samples])
+            y = torch.tensor([int(y) for _, y in samples])
             was_training = self.model.training
             self.model.eval()
             with torch.no_grad():
@@ -171,8 +173,12 @@ class Session:
             return self.val_set
 
     def val_samples(self) -> list[dict]:
-        rows = {r.id: r for r in self.client.get_rows("val", self.val_set, ["x", "y"])}
-        return [{"val_id": i, "x": rows[i]["x"].squeeze().tolist(), "y": rows[i]["y"]} for i in self.val_set if i in rows]
+        """The shown validation samples: index, label, and pixels when the input is an image."""
+        out = []
+        for i in self.val_set:
+            x, y = self.val[i]
+            out.append({"val_id": i, "x": preview(x), "y": int(y)})
+        return out
 
     # ---- status
     def queue(self) -> list[dict]:
@@ -185,13 +191,17 @@ class Session:
                 for w, bs in sorted(workers.items())]
 
     def status(self) -> dict:
-        evals = self.client.get_rows("evals", [self.run * 100_000 + n for n in range(1, self.evals + 1)][-12:], ["acc"])
-        return {"running": self.running, "delay_ms": self.delay_ms, "run": self.run, "epoch": self.epoch,
-                "step": self.step_no, "batch": self.batch, "batches_per_epoch": len(self.sampler),
-                "batch_size": self.batch_size, "num_workers": self.num_workers,
-                "prefetch_factor": self.prefetch_factor, "val_set": self.val_set,
-                "accuracy_history": [r["acc"] for r in evals], "last_step": self.last_step,
-                "queue": self.queue(), "db": self.client.stats()}
+        """Everything the dashboard polls for."""
+        return {"running": self.running, "epoch": self.epoch, "step": self.step_no, "batch": self.batch,
+                "batches_per_epoch": len(self.sampler), "batch_size": self.batch_size,
+                "num_workers": self.num_workers, "prefetch_factor": self.prefetch_factor, "val_set": self.val_set,
+                "last_step": self.last_step, "queue": self.queue(), "db": self.client.stats()}
+
+
+def preview(x) -> list | None:
+    """Pixels for an H×W or 3×H×W input (after squeezing), else None."""
+    x = as_input(x).squeeze()
+    return x.tolist() if x.ndim == 2 or (x.ndim == 3 and x.shape[0] == 3) else None
 
 
 # ---- history

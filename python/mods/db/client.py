@@ -2,8 +2,7 @@
 
 The gRPC channel is opened lazily per process: DataLoader workers are separate
 processes and each needs its own connection. Pickling a Client (as happens
-when a Dataset is sent to a spawned worker) carries only the address.
-"""
+when a Dataset is sent to a spawned worker) carries only the address."""
 
 from __future__ import annotations
 
@@ -15,13 +14,12 @@ os.environ.setdefault("GRPC_ENABLE_FORK_SUPPORT", "false")
 os.environ.setdefault("GRPC_VERBOSITY", "ERROR")
 
 import grpc  # noqa: E402
-import torch  # noqa: E402
 
 from ._pb import modsdb_pb2 as pb  # noqa: E402
 from ._pb import modsdb_pb2_grpc as rpc  # noqa: E402
 
 IDLE, QUEUED, CONSUMED = 0, 1, 2
-_TYPES = {"int64": pb.INT64, "float64": pb.FLOAT64, "tensor": pb.TENSOR}
+_TYPES = {"int64": pb.INT64, "float64": pb.FLOAT64}
 
 
 class DBError(Exception):
@@ -29,12 +27,6 @@ class DBError(Exception):
 
 
 def to_value(v: Any) -> pb.Value:
-    if isinstance(v, torch.Tensor):
-        if v.dtype == torch.uint8:  # images: 1 byte per pixel
-            t = v.detach().contiguous()
-            return pb.Value(t=pb.Tensor(shape=list(t.shape), data=t.numpy().tobytes(), dtype=pb.U8))
-        t = v.detach().to(torch.float32).contiguous()
-        return pb.Value(t=pb.Tensor(shape=list(t.shape), data=t.numpy().tobytes()))
     if isinstance(v, (bool, int)):
         return pb.Value(i=int(v))
     if isinstance(v, float):
@@ -44,9 +36,6 @@ def to_value(v: Any) -> pb.Value:
 
 def from_value(v: pb.Value) -> Any:
     kind = v.WhichOneof("v")
-    if kind == "t":
-        dtype = torch.uint8 if v.t.dtype == pb.U8 else torch.float32
-        return torch.frombuffer(bytearray(v.t.data), dtype=dtype).reshape(list(v.t.shape))
     return getattr(v, kind) if kind else None
 
 
@@ -88,7 +77,9 @@ class Client:
 
     def _call(self, method: str, req):
         if self._pid != os.getpid():
-            opts = [("grpc.max_receive_message_length", 256 << 20), ("grpc.max_send_message_length", 256 << 20)]
+            # Starting a run writes one state row per training sample in a single
+            # commit (about 10 MB for MNIST), above gRPC's 4 MB default.
+            opts = [("grpc.max_send_message_length", 256 << 20), ("grpc.max_receive_message_length", 256 << 20)]
             self._stub = rpc.ModsDBStub(grpc.insecure_channel(self.addr, options=opts))
             self._pid = os.getpid()
         try:
@@ -116,18 +107,6 @@ class Client:
     def fetch_and_mark(self, table: str, ids: Sequence[int], mark: dict, columns: Sequence[str] = (), tag: str = "") -> list[Row]:
         req = pb.FetchAndMarkRequest(table=table, ids=ids, mark=_cols(mark), columns=columns, tag=tag)
         return [Row(r) for r in self._call("FetchAndMark", req).rows]
-
-    def create_checkpoint(self, name: str, blob: bytes) -> dict:
-        c = self._call("CreateCheckpoint", pb.CreateCheckpointRequest(name=name, blob=blob))
-        return {"id": c.id, "name": c.name, "lsn": c.lsn, "created_unix_ms": c.created_unix_ms}
-
-    def list_checkpoints(self) -> list[dict]:
-        return [{"id": c.id, "name": c.name, "lsn": c.lsn, "created_unix_ms": c.created_unix_ms}
-                for c in self._call("ListCheckpoints", pb.Empty()).checkpoints]
-
-    def restore_checkpoint(self, ckpt_id: str) -> tuple[bytes, int]:
-        r = self._call("RestoreCheckpoint", pb.RestoreCheckpointRequest(id=ckpt_id))
-        return r.blob, r.lsn
 
     def stats(self) -> dict:
         s = self._call("Stats", pb.Empty())

@@ -1,5 +1,5 @@
 // Package engine is modsdb's storage engine: an in-memory table image made
-// durable by a write-ahead log and periodic snapshots, plus named checkpoints.
+// durable by a write-ahead log and periodic snapshots.
 //
 // All writes go through one commit goroutine. It drains every queued request,
 // validates each against the committed state plus earlier requests in the same
@@ -8,9 +8,6 @@
 package engine
 
 import (
-	"crypto/rand"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -20,7 +17,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	pb "mods/db/gen/modsdbv1"
 	"mods/db/internal/snapshot"
@@ -62,8 +58,6 @@ const (
 	reqFetch
 	reqCreate
 	reqDrop
-	reqCheckpoint
-	reqRestore
 	reqClose
 )
 
@@ -72,23 +66,18 @@ type request struct {
 	batch  *pb.WriteBatch
 	fetch  *pb.FetchAndMarkRequest
 	create *pb.CreateTableRequest
-	name   string
-	blob   []byte
-	id     string
 	done   chan result
 }
 
 type result struct {
 	lsn  uint64
 	rows []*pb.Row
-	ckpt *pb.Checkpoint
-	blob []byte
 	err  error
 }
 
 type Engine struct {
-	opts                     Options
-	walDir, snapDir, ckptDir string
+	opts            Options
+	walDir, snapDir string
 
 	mu     sync.RWMutex // guards tables (the loop is the only writer)
 	tables map[string]*table
@@ -113,8 +102,8 @@ func Open(opts Options) (*Engine, error) {
 		opts.SnapshotEvery = 16 << 20
 	}
 	e := &Engine{opts: opts, tables: map[string]*table{}, reqs: make(chan *request, 1024), stopped: make(chan struct{}),
-		walDir: filepath.Join(opts.Dir, "wal"), snapDir: filepath.Join(opts.Dir, "snap"), ckptDir: filepath.Join(opts.Dir, "ckpt")}
-	for _, d := range []string{e.walDir, e.snapDir, e.ckptDir} {
+		walDir: filepath.Join(opts.Dir, "wal"), snapDir: filepath.Join(opts.Dir, "snap")}
+	for _, d := range []string{e.walDir, e.snapDir} {
 		if err := os.MkdirAll(d, 0o755); err != nil {
 			return nil, err
 		}
@@ -169,7 +158,7 @@ func (e *Engine) recover() error {
 			break
 		}
 	}
-	res, err := wal.Replay(e.walDir, base, false, func(r wal.Record) error {
+	res, err := wal.Replay(e.walDir, base, func(r wal.Record) error {
 		switch r.Type {
 		case wal.TypeCreateTable:
 			var m pb.CreateTableRequest
@@ -189,16 +178,6 @@ func (e *Engine) recover() error {
 				return err
 			}
 			e.applyLogged(&m, r.LSN)
-		case wal.TypeRestore: // crashed between logging a restore and snapshotting it
-			var m pb.RestoreCheckpointRequest
-			if err := proto.Unmarshal(r.Payload, &m); err != nil {
-				return err
-			}
-			_, tables, err := snapshot.Read(filepath.Join(e.ckptDir, m.Id+".snap"))
-			if err != nil {
-				return fmt.Errorf("replaying restore of %s: %w", m.Id, err)
-			}
-			e.load(tables)
 		default:
 			return fmt.Errorf("unknown WAL record type %d", r.Type)
 		}
@@ -271,18 +250,11 @@ func checkCols(t *table, cols map[string]*pb.Value) error {
 		if !ok {
 			return fmt.Errorf("%w: unknown column %q", ErrInvalid, name)
 		}
-		switch x := v.GetV().(type) {
+		switch v.GetV().(type) {
 		case *pb.Value_I:
 			ok = typ == pb.ColumnType_INT64
 		case *pb.Value_F:
 			ok = typ == pb.ColumnType_FLOAT64
-		case *pb.Value_T:
-			n := 1
-			for _, d := range x.T.Shape {
-				n *= int(d)
-			}
-			size := map[pb.DType]int{pb.DType_F32: 4, pb.DType_U8: 1}[x.T.Dtype]
-			ok = typ == pb.ColumnType_TENSOR && size > 0 && n*size == len(x.T.Data)
 		default:
 			ok = false
 		}
@@ -513,12 +485,6 @@ func (e *Engine) snapshot(lsn uint64) error {
 	return e.w.TruncateThrough(snaps[min(1, len(snaps)-1)])
 }
 
-func newID() string {
-	var b [6]byte
-	rand.Read(b[:])
-	return hex.EncodeToString(b[:])
-}
-
 // barrier runs one non-write request. Returns true when the loop should stop.
 func (e *Engine) barrier(r *request) bool {
 	if e.failed != nil && r.kind != reqClose {
@@ -564,35 +530,6 @@ func (e *Engine) barrier(r *request) bool {
 		e.mu.Unlock()
 		r.done <- result{lsn: lsn}
 
-	case reqCheckpoint:
-		// The loop is the only writer, so the image captured here is consistent.
-		c := &pb.Checkpoint{Id: newID(), Name: r.name, Lsn: e.lastLSN.Load(), CreatedUnixMs: time.Now().UnixMilli()}
-		err := e.writeCheckpoint(c, r.blob)
-		r.done <- result{ckpt: c, err: err}
-
-	case reqRestore:
-		c, blob, tables, err := e.readCheckpoint(r.id)
-		if err != nil {
-			r.done <- result{err: err}
-			return false
-		}
-		lsn, err := e.logRecord(wal.TypeRestore, &pb.RestoreCheckpointRequest{Id: r.id})
-		if err == nil {
-			err = e.w.Sync()
-		}
-		if err != nil {
-			r.done <- result{err: err}
-			return false
-		}
-		e.lastLSN.Store(lsn)
-		e.mu.Lock()
-		e.load(tables)
-		e.mu.Unlock()
-		if err := e.snapshot(lsn); err != nil {
-			e.failed = err
-		}
-		r.done <- result{lsn: lsn, ckpt: c, blob: blob, err: err}
-
 	case reqClose:
 		var err error
 		if e.failed == nil && e.lastLSN.Load() > e.lastSnap.Load() {
@@ -605,70 +542,6 @@ func (e *Engine) barrier(r *request) bool {
 		return true
 	}
 	return false
-}
-
-// ------------------------------------------------------------ checkpoints
-// A checkpoint is ckpt/<id>.snap + <id>.bin + <id>.json. The JSON metadata is
-// written last, so a checkpoint exists only once all three are durable.
-
-func writeAtomic(path string, data []byte) error {
-	tmp := path + ".tmp"
-	f, err := os.Create(tmp)
-	if err != nil {
-		return err
-	}
-	if _, err = f.Write(data); err == nil {
-		err = f.Sync()
-	}
-	if cerr := f.Close(); err == nil {
-		err = cerr
-	}
-	if err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
-}
-
-func (e *Engine) writeCheckpoint(c *pb.Checkpoint, blob []byte) error {
-	base := filepath.Join(e.ckptDir, c.Id)
-	if _, err := snapshot.Write(base+".snap", c.Lsn, e.capture()); err != nil {
-		return err
-	}
-	if err := writeAtomic(base+".bin", blob); err != nil {
-		return err
-	}
-	meta, _ := json.Marshal(map[string]any{"id": c.Id, "name": c.Name, "lsn": c.Lsn, "created_unix_ms": c.CreatedUnixMs})
-	return writeAtomic(base+".json", meta)
-}
-
-func (e *Engine) readMeta(id string) (*pb.Checkpoint, error) {
-	b, err := os.ReadFile(filepath.Join(e.ckptDir, id+".json"))
-	if err != nil {
-		return nil, fmt.Errorf("%w: checkpoint %q", ErrNotFound, id)
-	}
-	var m struct {
-		ID      string `json:"id"`
-		Name    string `json:"name"`
-		LSN     uint64 `json:"lsn"`
-		Created int64  `json:"created_unix_ms"`
-	}
-	if err := json.Unmarshal(b, &m); err != nil {
-		return nil, err
-	}
-	return &pb.Checkpoint{Id: m.ID, Name: m.Name, Lsn: m.LSN, CreatedUnixMs: m.Created}, nil
-}
-
-func (e *Engine) readCheckpoint(id string) (*pb.Checkpoint, []byte, []snapshot.Table, error) {
-	c, err := e.readMeta(id)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	blob, err := os.ReadFile(filepath.Join(e.ckptDir, id+".bin"))
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	_, tables, err := snapshot.Read(filepath.Join(e.ckptDir, id+".snap"))
-	return c, blob, tables, err
 }
 
 // ------------------------------------------------------------ public API
@@ -742,32 +615,6 @@ func (e *Engine) Scan(r *pb.ScanRequest) ([]*pb.Row, error) {
 	return out, nil
 }
 
-func (e *Engine) CreateCheckpoint(name string, blob []byte) (*pb.Checkpoint, error) {
-	res := e.submit(&request{kind: reqCheckpoint, name: name, blob: blob})
-	return res.ckpt, res.err
-}
-
-func (e *Engine) ListCheckpoints() []*pb.Checkpoint {
-	ents, _ := os.ReadDir(e.ckptDir)
-	var out []*pb.Checkpoint
-	for _, ent := range ents {
-		if id, ok := strings.CutSuffix(ent.Name(), ".json"); ok {
-			if c, err := e.readMeta(id); err == nil {
-				out = append(out, c)
-			}
-		}
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Lsn < out[j].Lsn })
-	return out
-}
-
-// RestoreCheckpoint replaces every table with the checkpoint's image and
-// returns its blob and the LSN of the restore.
-func (e *Engine) RestoreCheckpoint(id string) (*pb.Checkpoint, []byte, uint64, error) {
-	res := e.submit(&request{kind: reqRestore, id: id})
-	return res.ckpt, res.blob, res.lsn, res.err
-}
-
 func (e *Engine) Stats() *pb.StatsResponse {
 	s := &pb.StatsResponse{LastLsn: e.lastLSN.Load(), LastSnapshotLsn: e.lastSnap.Load(),
 		Commits: e.commits.Load(), Fsyncs: e.fsyncs.Load()}
@@ -775,7 +622,6 @@ func (e *Engine) Stats() *pb.StatsResponse {
 	for _, ent := range ents {
 		if info, err := ent.Info(); err == nil {
 			s.WalBytes += uint64(info.Size())
-			s.WalSegments++
 		}
 	}
 	return s

@@ -27,7 +27,6 @@ const (
 	ColumnType_COLUMN_TYPE_UNSPECIFIED ColumnType = 0
 	ColumnType_INT64                   ColumnType = 1
 	ColumnType_FLOAT64                 ColumnType = 2
-	ColumnType_TENSOR                  ColumnType = 3
 )
 
 // Enum value maps for ColumnType.
@@ -36,13 +35,11 @@ var (
 		0: "COLUMN_TYPE_UNSPECIFIED",
 		1: "INT64",
 		2: "FLOAT64",
-		3: "TENSOR",
 	}
 	ColumnType_value = map[string]int32{
 		"COLUMN_TYPE_UNSPECIFIED": 0,
 		"INT64":                   1,
 		"FLOAT64":                 2,
-		"TENSOR":                  3,
 	}
 )
 
@@ -71,52 +68,6 @@ func (x ColumnType) Number() protoreflect.EnumNumber {
 // Deprecated: Use ColumnType.Descriptor instead.
 func (ColumnType) EnumDescriptor() ([]byte, []int) {
 	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{0}
-}
-
-type DType int32
-
-const (
-	DType_F32 DType = 0
-	DType_U8  DType = 1
-)
-
-// Enum value maps for DType.
-var (
-	DType_name = map[int32]string{
-		0: "F32",
-		1: "U8",
-	}
-	DType_value = map[string]int32{
-		"F32": 0,
-		"U8":  1,
-	}
-)
-
-func (x DType) Enum() *DType {
-	p := new(DType)
-	*p = x
-	return p
-}
-
-func (x DType) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (DType) Descriptor() protoreflect.EnumDescriptor {
-	return file_modsdb_v1_modsdb_proto_enumTypes[1].Descriptor()
-}
-
-func (DType) Type() protoreflect.EnumType {
-	return &file_modsdb_v1_modsdb_proto_enumTypes[1]
-}
-
-func (x DType) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use DType.Descriptor instead.
-func (DType) EnumDescriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{1}
 }
 
 type Op_Kind int32
@@ -155,11 +106,11 @@ func (x Op_Kind) String() string {
 }
 
 func (Op_Kind) Descriptor() protoreflect.EnumDescriptor {
-	return file_modsdb_v1_modsdb_proto_enumTypes[2].Descriptor()
+	return file_modsdb_v1_modsdb_proto_enumTypes[1].Descriptor()
 }
 
 func (Op_Kind) Type() protoreflect.EnumType {
-	return &file_modsdb_v1_modsdb_proto_enumTypes[2]
+	return &file_modsdb_v1_modsdb_proto_enumTypes[1]
 }
 
 func (x Op_Kind) Number() protoreflect.EnumNumber {
@@ -168,7 +119,7 @@ func (x Op_Kind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Op_Kind.Descriptor instead.
 func (Op_Kind) EnumDescriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{11, 0}
+	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{10, 0}
 }
 
 type Empty struct {
@@ -207,73 +158,12 @@ func (*Empty) Descriptor() ([]byte, []int) {
 	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{0}
 }
 
-type Tensor struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Shape         []int64                `protobuf:"varint,1,rep,packed,name=shape,proto3" json:"shape,omitempty"`
-	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
-	Dtype         DType                  `protobuf:"varint,3,opt,name=dtype,proto3,enum=modsdb.v1.DType" json:"dtype,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Tensor) Reset() {
-	*x = Tensor{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Tensor) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Tensor) ProtoMessage() {}
-
-func (x *Tensor) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Tensor.ProtoReflect.Descriptor instead.
-func (*Tensor) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *Tensor) GetShape() []int64 {
-	if x != nil {
-		return x.Shape
-	}
-	return nil
-}
-
-func (x *Tensor) GetData() []byte {
-	if x != nil {
-		return x.Data
-	}
-	return nil
-}
-
-func (x *Tensor) GetDtype() DType {
-	if x != nil {
-		return x.Dtype
-	}
-	return DType_F32
-}
-
 type Value struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to V:
 	//
 	//	*Value_I
 	//	*Value_F
-	//	*Value_T
 	V             isValue_V `protobuf_oneof:"v"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -281,7 +171,7 @@ type Value struct {
 
 func (x *Value) Reset() {
 	*x = Value{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[2]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -293,7 +183,7 @@ func (x *Value) String() string {
 func (*Value) ProtoMessage() {}
 
 func (x *Value) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[2]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -306,7 +196,7 @@ func (x *Value) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Value.ProtoReflect.Descriptor instead.
 func (*Value) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{2}
+	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Value) GetV() isValue_V {
@@ -334,15 +224,6 @@ func (x *Value) GetF() float64 {
 	return 0
 }
 
-func (x *Value) GetT() *Tensor {
-	if x != nil {
-		if x, ok := x.V.(*Value_T); ok {
-			return x.T
-		}
-	}
-	return nil
-}
-
 type isValue_V interface {
 	isValue_V()
 }
@@ -355,15 +236,9 @@ type Value_F struct {
 	F float64 `protobuf:"fixed64,2,opt,name=f,proto3,oneof"`
 }
 
-type Value_T struct {
-	T *Tensor `protobuf:"bytes,3,opt,name=t,proto3,oneof"`
-}
-
 func (*Value_I) isValue_V() {}
 
 func (*Value_F) isValue_V() {}
-
-func (*Value_T) isValue_V() {}
 
 type Column struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -375,7 +250,7 @@ type Column struct {
 
 func (x *Column) Reset() {
 	*x = Column{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[3]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -387,7 +262,7 @@ func (x *Column) String() string {
 func (*Column) ProtoMessage() {}
 
 func (x *Column) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[3]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -400,7 +275,7 @@ func (x *Column) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Column.ProtoReflect.Descriptor instead.
 func (*Column) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{3}
+	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Column) GetName() string {
@@ -426,7 +301,7 @@ type Schema struct {
 
 func (x *Schema) Reset() {
 	*x = Schema{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[4]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -438,7 +313,7 @@ func (x *Schema) String() string {
 func (*Schema) ProtoMessage() {}
 
 func (x *Schema) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[4]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -451,7 +326,7 @@ func (x *Schema) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Schema.ProtoReflect.Descriptor instead.
 func (*Schema) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{4}
+	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Schema) GetColumns() []*Column {
@@ -472,7 +347,7 @@ type Row struct {
 
 func (x *Row) Reset() {
 	*x = Row{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[5]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -484,7 +359,7 @@ func (x *Row) String() string {
 func (*Row) ProtoMessage() {}
 
 func (x *Row) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[5]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -497,7 +372,7 @@ func (x *Row) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Row.ProtoReflect.Descriptor instead.
 func (*Row) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{5}
+	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Row) GetId() uint64 {
@@ -530,7 +405,7 @@ type Rows struct {
 
 func (x *Rows) Reset() {
 	*x = Rows{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[6]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -542,7 +417,7 @@ func (x *Rows) String() string {
 func (*Rows) ProtoMessage() {}
 
 func (x *Rows) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[6]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -555,7 +430,7 @@ func (x *Rows) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Rows.ProtoReflect.Descriptor instead.
 func (*Rows) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{6}
+	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Rows) GetRows() []*Row {
@@ -575,7 +450,7 @@ type CreateTableRequest struct {
 
 func (x *CreateTableRequest) Reset() {
 	*x = CreateTableRequest{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[7]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -587,7 +462,7 @@ func (x *CreateTableRequest) String() string {
 func (*CreateTableRequest) ProtoMessage() {}
 
 func (x *CreateTableRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[7]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -600,7 +475,7 @@ func (x *CreateTableRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTableRequest.ProtoReflect.Descriptor instead.
 func (*CreateTableRequest) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{7}
+	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CreateTableRequest) GetTable() string {
@@ -626,7 +501,7 @@ type DropTableRequest struct {
 
 func (x *DropTableRequest) Reset() {
 	*x = DropTableRequest{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[8]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -638,7 +513,7 @@ func (x *DropTableRequest) String() string {
 func (*DropTableRequest) ProtoMessage() {}
 
 func (x *DropTableRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[8]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -651,7 +526,7 @@ func (x *DropTableRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DropTableRequest.ProtoReflect.Descriptor instead.
 func (*DropTableRequest) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{8}
+	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *DropTableRequest) GetTable() string {
@@ -672,7 +547,7 @@ type GetRowsRequest struct {
 
 func (x *GetRowsRequest) Reset() {
 	*x = GetRowsRequest{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[9]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -684,7 +559,7 @@ func (x *GetRowsRequest) String() string {
 func (*GetRowsRequest) ProtoMessage() {}
 
 func (x *GetRowsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[9]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -697,7 +572,7 @@ func (x *GetRowsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRowsRequest.ProtoReflect.Descriptor instead.
 func (*GetRowsRequest) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{9}
+	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetRowsRequest) GetTable() string {
@@ -734,7 +609,7 @@ type ScanRequest struct {
 
 func (x *ScanRequest) Reset() {
 	*x = ScanRequest{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[10]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -746,7 +621,7 @@ func (x *ScanRequest) String() string {
 func (*ScanRequest) ProtoMessage() {}
 
 func (x *ScanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[10]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -759,7 +634,7 @@ func (x *ScanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScanRequest.ProtoReflect.Descriptor instead.
 func (*ScanRequest) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{10}
+	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ScanRequest) GetTable() string {
@@ -809,7 +684,7 @@ type Op struct {
 
 func (x *Op) Reset() {
 	*x = Op{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[11]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -821,7 +696,7 @@ func (x *Op) String() string {
 func (*Op) ProtoMessage() {}
 
 func (x *Op) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[11]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -834,7 +709,7 @@ func (x *Op) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Op.ProtoReflect.Descriptor instead.
 func (*Op) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{11}
+	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Op) GetTable() string {
@@ -875,7 +750,7 @@ type WriteBatch struct {
 
 func (x *WriteBatch) Reset() {
 	*x = WriteBatch{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[12]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -887,7 +762,7 @@ func (x *WriteBatch) String() string {
 func (*WriteBatch) ProtoMessage() {}
 
 func (x *WriteBatch) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[12]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -900,7 +775,7 @@ func (x *WriteBatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WriteBatch.ProtoReflect.Descriptor instead.
 func (*WriteBatch) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{12}
+	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *WriteBatch) GetOps() []*Op {
@@ -926,7 +801,7 @@ type CommitAck struct {
 
 func (x *CommitAck) Reset() {
 	*x = CommitAck{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[13]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -938,7 +813,7 @@ func (x *CommitAck) String() string {
 func (*CommitAck) ProtoMessage() {}
 
 func (x *CommitAck) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[13]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -951,7 +826,7 @@ func (x *CommitAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommitAck.ProtoReflect.Descriptor instead.
 func (*CommitAck) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{13}
+	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CommitAck) GetLsn() uint64 {
@@ -974,7 +849,7 @@ type FetchAndMarkRequest struct {
 
 func (x *FetchAndMarkRequest) Reset() {
 	*x = FetchAndMarkRequest{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[14]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -986,7 +861,7 @@ func (x *FetchAndMarkRequest) String() string {
 func (*FetchAndMarkRequest) ProtoMessage() {}
 
 func (x *FetchAndMarkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[14]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -999,7 +874,7 @@ func (x *FetchAndMarkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FetchAndMarkRequest.ProtoReflect.Descriptor instead.
 func (*FetchAndMarkRequest) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{14}
+	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *FetchAndMarkRequest) GetTable() string {
@@ -1037,289 +912,20 @@ func (x *FetchAndMarkRequest) GetTag() string {
 	return ""
 }
 
-type CreateCheckpointRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Blob          []byte                 `protobuf:"bytes,2,opt,name=blob,proto3" json:"blob,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CreateCheckpointRequest) Reset() {
-	*x = CreateCheckpointRequest{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[15]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CreateCheckpointRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CreateCheckpointRequest) ProtoMessage() {}
-
-func (x *CreateCheckpointRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[15]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CreateCheckpointRequest.ProtoReflect.Descriptor instead.
-func (*CreateCheckpointRequest) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{15}
-}
-
-func (x *CreateCheckpointRequest) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *CreateCheckpointRequest) GetBlob() []byte {
-	if x != nil {
-		return x.Blob
-	}
-	return nil
-}
-
-type Checkpoint struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Lsn           uint64                 `protobuf:"varint,3,opt,name=lsn,proto3" json:"lsn,omitempty"`
-	CreatedUnixMs int64                  `protobuf:"varint,4,opt,name=created_unix_ms,json=createdUnixMs,proto3" json:"created_unix_ms,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Checkpoint) Reset() {
-	*x = Checkpoint{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[16]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Checkpoint) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Checkpoint) ProtoMessage() {}
-
-func (x *Checkpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[16]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Checkpoint.ProtoReflect.Descriptor instead.
-func (*Checkpoint) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{16}
-}
-
-func (x *Checkpoint) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *Checkpoint) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *Checkpoint) GetLsn() uint64 {
-	if x != nil {
-		return x.Lsn
-	}
-	return 0
-}
-
-func (x *Checkpoint) GetCreatedUnixMs() int64 {
-	if x != nil {
-		return x.CreatedUnixMs
-	}
-	return 0
-}
-
-type CheckpointList struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Checkpoints   []*Checkpoint          `protobuf:"bytes,1,rep,name=checkpoints,proto3" json:"checkpoints,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CheckpointList) Reset() {
-	*x = CheckpointList{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[17]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CheckpointList) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CheckpointList) ProtoMessage() {}
-
-func (x *CheckpointList) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[17]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CheckpointList.ProtoReflect.Descriptor instead.
-func (*CheckpointList) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{17}
-}
-
-func (x *CheckpointList) GetCheckpoints() []*Checkpoint {
-	if x != nil {
-		return x.Checkpoints
-	}
-	return nil
-}
-
-type RestoreCheckpointRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RestoreCheckpointRequest) Reset() {
-	*x = RestoreCheckpointRequest{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[18]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RestoreCheckpointRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RestoreCheckpointRequest) ProtoMessage() {}
-
-func (x *RestoreCheckpointRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[18]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RestoreCheckpointRequest.ProtoReflect.Descriptor instead.
-func (*RestoreCheckpointRequest) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{18}
-}
-
-func (x *RestoreCheckpointRequest) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-type RestoreCheckpointResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Checkpoint    *Checkpoint            `protobuf:"bytes,1,opt,name=checkpoint,proto3" json:"checkpoint,omitempty"`
-	Blob          []byte                 `protobuf:"bytes,2,opt,name=blob,proto3" json:"blob,omitempty"`
-	Lsn           uint64                 `protobuf:"varint,3,opt,name=lsn,proto3" json:"lsn,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RestoreCheckpointResponse) Reset() {
-	*x = RestoreCheckpointResponse{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[19]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RestoreCheckpointResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RestoreCheckpointResponse) ProtoMessage() {}
-
-func (x *RestoreCheckpointResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[19]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RestoreCheckpointResponse.ProtoReflect.Descriptor instead.
-func (*RestoreCheckpointResponse) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{19}
-}
-
-func (x *RestoreCheckpointResponse) GetCheckpoint() *Checkpoint {
-	if x != nil {
-		return x.Checkpoint
-	}
-	return nil
-}
-
-func (x *RestoreCheckpointResponse) GetBlob() []byte {
-	if x != nil {
-		return x.Blob
-	}
-	return nil
-}
-
-func (x *RestoreCheckpointResponse) GetLsn() uint64 {
-	if x != nil {
-		return x.Lsn
-	}
-	return 0
-}
-
 type StatsResponse struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	LastLsn         uint64                 `protobuf:"varint,1,opt,name=last_lsn,json=lastLsn,proto3" json:"last_lsn,omitempty"`
 	LastSnapshotLsn uint64                 `protobuf:"varint,2,opt,name=last_snapshot_lsn,json=lastSnapshotLsn,proto3" json:"last_snapshot_lsn,omitempty"`
 	WalBytes        uint64                 `protobuf:"varint,3,opt,name=wal_bytes,json=walBytes,proto3" json:"wal_bytes,omitempty"`
-	WalSegments     uint32                 `protobuf:"varint,4,opt,name=wal_segments,json=walSegments,proto3" json:"wal_segments,omitempty"`
-	Commits         uint64                 `protobuf:"varint,5,opt,name=commits,proto3" json:"commits,omitempty"`
-	Fsyncs          uint64                 `protobuf:"varint,6,opt,name=fsyncs,proto3" json:"fsyncs,omitempty"` // commits / fsyncs = average group-commit size
+	Commits         uint64                 `protobuf:"varint,4,opt,name=commits,proto3" json:"commits,omitempty"`
+	Fsyncs          uint64                 `protobuf:"varint,5,opt,name=fsyncs,proto3" json:"fsyncs,omitempty"` // commits / fsyncs = average group-commit size
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
 func (x *StatsResponse) Reset() {
 	*x = StatsResponse{}
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[20]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1331,7 +937,7 @@ func (x *StatsResponse) String() string {
 func (*StatsResponse) ProtoMessage() {}
 
 func (x *StatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_modsdb_v1_modsdb_proto_msgTypes[20]
+	mi := &file_modsdb_v1_modsdb_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1344,7 +950,7 @@ func (x *StatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatsResponse.ProtoReflect.Descriptor instead.
 func (*StatsResponse) Descriptor() ([]byte, []int) {
-	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{20}
+	return file_modsdb_v1_modsdb_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *StatsResponse) GetLastLsn() uint64 {
@@ -1368,13 +974,6 @@ func (x *StatsResponse) GetWalBytes() uint64 {
 	return 0
 }
 
-func (x *StatsResponse) GetWalSegments() uint32 {
-	if x != nil {
-		return x.WalSegments
-	}
-	return 0
-}
-
 func (x *StatsResponse) GetCommits() uint64 {
 	if x != nil {
 		return x.Commits
@@ -1394,15 +993,10 @@ var File_modsdb_v1_modsdb_proto protoreflect.FileDescriptor
 const file_modsdb_v1_modsdb_proto_rawDesc = "" +
 	"\n" +
 	"\x16modsdb/v1/modsdb.proto\x12\tmodsdb.v1\"\a\n" +
-	"\x05Empty\"Z\n" +
-	"\x06Tensor\x12\x14\n" +
-	"\x05shape\x18\x01 \x03(\x03R\x05shape\x12\x12\n" +
-	"\x04data\x18\x02 \x01(\fR\x04data\x12&\n" +
-	"\x05dtype\x18\x03 \x01(\x0e2\x10.modsdb.v1.DTypeR\x05dtype\"O\n" +
+	"\x05Empty\",\n" +
 	"\x05Value\x12\x0e\n" +
 	"\x01i\x18\x01 \x01(\x03H\x00R\x01i\x12\x0e\n" +
-	"\x01f\x18\x02 \x01(\x01H\x00R\x01f\x12!\n" +
-	"\x01t\x18\x03 \x01(\v2\x11.modsdb.v1.TensorH\x00R\x01tB\x03\n" +
+	"\x01f\x18\x02 \x01(\x01H\x00R\x01fB\x03\n" +
 	"\x01v\"G\n" +
 	"\x06Column\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12)\n" +
@@ -1460,53 +1054,25 @@ const file_modsdb_v1_modsdb_proto_rawDesc = "" +
 	"\x03tag\x18\x05 \x01(\tR\x03tag\x1aI\n" +
 	"\tMarkEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12&\n" +
-	"\x05value\x18\x02 \x01(\v2\x10.modsdb.v1.ValueR\x05value:\x028\x01\"A\n" +
-	"\x17CreateCheckpointRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
-	"\x04blob\x18\x02 \x01(\fR\x04blob\"j\n" +
-	"\n" +
-	"Checkpoint\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\x10\n" +
-	"\x03lsn\x18\x03 \x01(\x04R\x03lsn\x12&\n" +
-	"\x0fcreated_unix_ms\x18\x04 \x01(\x03R\rcreatedUnixMs\"I\n" +
-	"\x0eCheckpointList\x127\n" +
-	"\vcheckpoints\x18\x01 \x03(\v2\x15.modsdb.v1.CheckpointR\vcheckpoints\"*\n" +
-	"\x18RestoreCheckpointRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"x\n" +
-	"\x19RestoreCheckpointResponse\x125\n" +
-	"\n" +
-	"checkpoint\x18\x01 \x01(\v2\x15.modsdb.v1.CheckpointR\n" +
-	"checkpoint\x12\x12\n" +
-	"\x04blob\x18\x02 \x01(\fR\x04blob\x12\x10\n" +
-	"\x03lsn\x18\x03 \x01(\x04R\x03lsn\"\xc8\x01\n" +
+	"\x05value\x18\x02 \x01(\v2\x10.modsdb.v1.ValueR\x05value:\x028\x01\"\xa5\x01\n" +
 	"\rStatsResponse\x12\x19\n" +
 	"\blast_lsn\x18\x01 \x01(\x04R\alastLsn\x12*\n" +
 	"\x11last_snapshot_lsn\x18\x02 \x01(\x04R\x0flastSnapshotLsn\x12\x1b\n" +
-	"\twal_bytes\x18\x03 \x01(\x04R\bwalBytes\x12!\n" +
-	"\fwal_segments\x18\x04 \x01(\rR\vwalSegments\x12\x18\n" +
-	"\acommits\x18\x05 \x01(\x04R\acommits\x12\x16\n" +
-	"\x06fsyncs\x18\x06 \x01(\x04R\x06fsyncs*M\n" +
+	"\twal_bytes\x18\x03 \x01(\x04R\bwalBytes\x12\x18\n" +
+	"\acommits\x18\x04 \x01(\x04R\acommits\x12\x16\n" +
+	"\x06fsyncs\x18\x05 \x01(\x04R\x06fsyncs*A\n" +
 	"\n" +
 	"ColumnType\x12\x1b\n" +
 	"\x17COLUMN_TYPE_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05INT64\x10\x01\x12\v\n" +
-	"\aFLOAT64\x10\x02\x12\n" +
-	"\n" +
-	"\x06TENSOR\x10\x03*\x18\n" +
-	"\x05DType\x12\a\n" +
-	"\x03F32\x10\x00\x12\x06\n" +
-	"\x02U8\x10\x012\x8f\x05\n" +
+	"\aFLOAT64\x10\x022\xa0\x03\n" +
 	"\x06ModsDB\x12B\n" +
 	"\vCreateTable\x12\x1d.modsdb.v1.CreateTableRequest\x1a\x14.modsdb.v1.CommitAck\x12>\n" +
 	"\tDropTable\x12\x1b.modsdb.v1.DropTableRequest\x1a\x14.modsdb.v1.CommitAck\x125\n" +
 	"\aGetRows\x12\x19.modsdb.v1.GetRowsRequest\x1a\x0f.modsdb.v1.Rows\x12/\n" +
 	"\x04Scan\x12\x16.modsdb.v1.ScanRequest\x1a\x0f.modsdb.v1.Rows\x124\n" +
 	"\x05Apply\x12\x15.modsdb.v1.WriteBatch\x1a\x14.modsdb.v1.CommitAck\x12?\n" +
-	"\fFetchAndMark\x12\x1e.modsdb.v1.FetchAndMarkRequest\x1a\x0f.modsdb.v1.Rows\x12M\n" +
-	"\x10CreateCheckpoint\x12\".modsdb.v1.CreateCheckpointRequest\x1a\x15.modsdb.v1.Checkpoint\x12>\n" +
-	"\x0fListCheckpoints\x12\x10.modsdb.v1.Empty\x1a\x19.modsdb.v1.CheckpointList\x12^\n" +
-	"\x11RestoreCheckpoint\x12#.modsdb.v1.RestoreCheckpointRequest\x1a$.modsdb.v1.RestoreCheckpointResponse\x123\n" +
+	"\fFetchAndMark\x12\x1e.modsdb.v1.FetchAndMarkRequest\x1a\x0f.modsdb.v1.Rows\x123\n" +
 	"\x05Stats\x12\x10.modsdb.v1.Empty\x1a\x18.modsdb.v1.StatsResponseB\x1fZ\x1dmods/db/gen/modsdbv1;modsdbv1b\x06proto3"
 
 var (
@@ -1521,79 +1087,62 @@ func file_modsdb_v1_modsdb_proto_rawDescGZIP() []byte {
 	return file_modsdb_v1_modsdb_proto_rawDescData
 }
 
-var file_modsdb_v1_modsdb_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_modsdb_v1_modsdb_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_modsdb_v1_modsdb_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_modsdb_v1_modsdb_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_modsdb_v1_modsdb_proto_goTypes = []any{
-	(ColumnType)(0),                   // 0: modsdb.v1.ColumnType
-	(DType)(0),                        // 1: modsdb.v1.DType
-	(Op_Kind)(0),                      // 2: modsdb.v1.Op.Kind
-	(*Empty)(nil),                     // 3: modsdb.v1.Empty
-	(*Tensor)(nil),                    // 4: modsdb.v1.Tensor
-	(*Value)(nil),                     // 5: modsdb.v1.Value
-	(*Column)(nil),                    // 6: modsdb.v1.Column
-	(*Schema)(nil),                    // 7: modsdb.v1.Schema
-	(*Row)(nil),                       // 8: modsdb.v1.Row
-	(*Rows)(nil),                      // 9: modsdb.v1.Rows
-	(*CreateTableRequest)(nil),        // 10: modsdb.v1.CreateTableRequest
-	(*DropTableRequest)(nil),          // 11: modsdb.v1.DropTableRequest
-	(*GetRowsRequest)(nil),            // 12: modsdb.v1.GetRowsRequest
-	(*ScanRequest)(nil),               // 13: modsdb.v1.ScanRequest
-	(*Op)(nil),                        // 14: modsdb.v1.Op
-	(*WriteBatch)(nil),                // 15: modsdb.v1.WriteBatch
-	(*CommitAck)(nil),                 // 16: modsdb.v1.CommitAck
-	(*FetchAndMarkRequest)(nil),       // 17: modsdb.v1.FetchAndMarkRequest
-	(*CreateCheckpointRequest)(nil),   // 18: modsdb.v1.CreateCheckpointRequest
-	(*Checkpoint)(nil),                // 19: modsdb.v1.Checkpoint
-	(*CheckpointList)(nil),            // 20: modsdb.v1.CheckpointList
-	(*RestoreCheckpointRequest)(nil),  // 21: modsdb.v1.RestoreCheckpointRequest
-	(*RestoreCheckpointResponse)(nil), // 22: modsdb.v1.RestoreCheckpointResponse
-	(*StatsResponse)(nil),             // 23: modsdb.v1.StatsResponse
-	nil,                               // 24: modsdb.v1.Row.ColsEntry
-	nil,                               // 25: modsdb.v1.Op.ColsEntry
-	nil,                               // 26: modsdb.v1.FetchAndMarkRequest.MarkEntry
+	(ColumnType)(0),             // 0: modsdb.v1.ColumnType
+	(Op_Kind)(0),                // 1: modsdb.v1.Op.Kind
+	(*Empty)(nil),               // 2: modsdb.v1.Empty
+	(*Value)(nil),               // 3: modsdb.v1.Value
+	(*Column)(nil),              // 4: modsdb.v1.Column
+	(*Schema)(nil),              // 5: modsdb.v1.Schema
+	(*Row)(nil),                 // 6: modsdb.v1.Row
+	(*Rows)(nil),                // 7: modsdb.v1.Rows
+	(*CreateTableRequest)(nil),  // 8: modsdb.v1.CreateTableRequest
+	(*DropTableRequest)(nil),    // 9: modsdb.v1.DropTableRequest
+	(*GetRowsRequest)(nil),      // 10: modsdb.v1.GetRowsRequest
+	(*ScanRequest)(nil),         // 11: modsdb.v1.ScanRequest
+	(*Op)(nil),                  // 12: modsdb.v1.Op
+	(*WriteBatch)(nil),          // 13: modsdb.v1.WriteBatch
+	(*CommitAck)(nil),           // 14: modsdb.v1.CommitAck
+	(*FetchAndMarkRequest)(nil), // 15: modsdb.v1.FetchAndMarkRequest
+	(*StatsResponse)(nil),       // 16: modsdb.v1.StatsResponse
+	nil,                         // 17: modsdb.v1.Row.ColsEntry
+	nil,                         // 18: modsdb.v1.Op.ColsEntry
+	nil,                         // 19: modsdb.v1.FetchAndMarkRequest.MarkEntry
 }
 var file_modsdb_v1_modsdb_proto_depIdxs = []int32{
-	1,  // 0: modsdb.v1.Tensor.dtype:type_name -> modsdb.v1.DType
-	4,  // 1: modsdb.v1.Value.t:type_name -> modsdb.v1.Tensor
-	0,  // 2: modsdb.v1.Column.type:type_name -> modsdb.v1.ColumnType
-	6,  // 3: modsdb.v1.Schema.columns:type_name -> modsdb.v1.Column
-	24, // 4: modsdb.v1.Row.cols:type_name -> modsdb.v1.Row.ColsEntry
-	8,  // 5: modsdb.v1.Rows.rows:type_name -> modsdb.v1.Row
-	7,  // 6: modsdb.v1.CreateTableRequest.schema:type_name -> modsdb.v1.Schema
-	2,  // 7: modsdb.v1.Op.kind:type_name -> modsdb.v1.Op.Kind
-	25, // 8: modsdb.v1.Op.cols:type_name -> modsdb.v1.Op.ColsEntry
-	14, // 9: modsdb.v1.WriteBatch.ops:type_name -> modsdb.v1.Op
-	26, // 10: modsdb.v1.FetchAndMarkRequest.mark:type_name -> modsdb.v1.FetchAndMarkRequest.MarkEntry
-	19, // 11: modsdb.v1.CheckpointList.checkpoints:type_name -> modsdb.v1.Checkpoint
-	19, // 12: modsdb.v1.RestoreCheckpointResponse.checkpoint:type_name -> modsdb.v1.Checkpoint
-	5,  // 13: modsdb.v1.Row.ColsEntry.value:type_name -> modsdb.v1.Value
-	5,  // 14: modsdb.v1.Op.ColsEntry.value:type_name -> modsdb.v1.Value
-	5,  // 15: modsdb.v1.FetchAndMarkRequest.MarkEntry.value:type_name -> modsdb.v1.Value
-	10, // 16: modsdb.v1.ModsDB.CreateTable:input_type -> modsdb.v1.CreateTableRequest
-	11, // 17: modsdb.v1.ModsDB.DropTable:input_type -> modsdb.v1.DropTableRequest
-	12, // 18: modsdb.v1.ModsDB.GetRows:input_type -> modsdb.v1.GetRowsRequest
-	13, // 19: modsdb.v1.ModsDB.Scan:input_type -> modsdb.v1.ScanRequest
-	15, // 20: modsdb.v1.ModsDB.Apply:input_type -> modsdb.v1.WriteBatch
-	17, // 21: modsdb.v1.ModsDB.FetchAndMark:input_type -> modsdb.v1.FetchAndMarkRequest
-	18, // 22: modsdb.v1.ModsDB.CreateCheckpoint:input_type -> modsdb.v1.CreateCheckpointRequest
-	3,  // 23: modsdb.v1.ModsDB.ListCheckpoints:input_type -> modsdb.v1.Empty
-	21, // 24: modsdb.v1.ModsDB.RestoreCheckpoint:input_type -> modsdb.v1.RestoreCheckpointRequest
-	3,  // 25: modsdb.v1.ModsDB.Stats:input_type -> modsdb.v1.Empty
-	16, // 26: modsdb.v1.ModsDB.CreateTable:output_type -> modsdb.v1.CommitAck
-	16, // 27: modsdb.v1.ModsDB.DropTable:output_type -> modsdb.v1.CommitAck
-	9,  // 28: modsdb.v1.ModsDB.GetRows:output_type -> modsdb.v1.Rows
-	9,  // 29: modsdb.v1.ModsDB.Scan:output_type -> modsdb.v1.Rows
-	16, // 30: modsdb.v1.ModsDB.Apply:output_type -> modsdb.v1.CommitAck
-	9,  // 31: modsdb.v1.ModsDB.FetchAndMark:output_type -> modsdb.v1.Rows
-	19, // 32: modsdb.v1.ModsDB.CreateCheckpoint:output_type -> modsdb.v1.Checkpoint
-	20, // 33: modsdb.v1.ModsDB.ListCheckpoints:output_type -> modsdb.v1.CheckpointList
-	22, // 34: modsdb.v1.ModsDB.RestoreCheckpoint:output_type -> modsdb.v1.RestoreCheckpointResponse
-	23, // 35: modsdb.v1.ModsDB.Stats:output_type -> modsdb.v1.StatsResponse
-	26, // [26:36] is the sub-list for method output_type
-	16, // [16:26] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	0,  // 0: modsdb.v1.Column.type:type_name -> modsdb.v1.ColumnType
+	4,  // 1: modsdb.v1.Schema.columns:type_name -> modsdb.v1.Column
+	17, // 2: modsdb.v1.Row.cols:type_name -> modsdb.v1.Row.ColsEntry
+	6,  // 3: modsdb.v1.Rows.rows:type_name -> modsdb.v1.Row
+	5,  // 4: modsdb.v1.CreateTableRequest.schema:type_name -> modsdb.v1.Schema
+	1,  // 5: modsdb.v1.Op.kind:type_name -> modsdb.v1.Op.Kind
+	18, // 6: modsdb.v1.Op.cols:type_name -> modsdb.v1.Op.ColsEntry
+	12, // 7: modsdb.v1.WriteBatch.ops:type_name -> modsdb.v1.Op
+	19, // 8: modsdb.v1.FetchAndMarkRequest.mark:type_name -> modsdb.v1.FetchAndMarkRequest.MarkEntry
+	3,  // 9: modsdb.v1.Row.ColsEntry.value:type_name -> modsdb.v1.Value
+	3,  // 10: modsdb.v1.Op.ColsEntry.value:type_name -> modsdb.v1.Value
+	3,  // 11: modsdb.v1.FetchAndMarkRequest.MarkEntry.value:type_name -> modsdb.v1.Value
+	8,  // 12: modsdb.v1.ModsDB.CreateTable:input_type -> modsdb.v1.CreateTableRequest
+	9,  // 13: modsdb.v1.ModsDB.DropTable:input_type -> modsdb.v1.DropTableRequest
+	10, // 14: modsdb.v1.ModsDB.GetRows:input_type -> modsdb.v1.GetRowsRequest
+	11, // 15: modsdb.v1.ModsDB.Scan:input_type -> modsdb.v1.ScanRequest
+	13, // 16: modsdb.v1.ModsDB.Apply:input_type -> modsdb.v1.WriteBatch
+	15, // 17: modsdb.v1.ModsDB.FetchAndMark:input_type -> modsdb.v1.FetchAndMarkRequest
+	2,  // 18: modsdb.v1.ModsDB.Stats:input_type -> modsdb.v1.Empty
+	14, // 19: modsdb.v1.ModsDB.CreateTable:output_type -> modsdb.v1.CommitAck
+	14, // 20: modsdb.v1.ModsDB.DropTable:output_type -> modsdb.v1.CommitAck
+	7,  // 21: modsdb.v1.ModsDB.GetRows:output_type -> modsdb.v1.Rows
+	7,  // 22: modsdb.v1.ModsDB.Scan:output_type -> modsdb.v1.Rows
+	14, // 23: modsdb.v1.ModsDB.Apply:output_type -> modsdb.v1.CommitAck
+	7,  // 24: modsdb.v1.ModsDB.FetchAndMark:output_type -> modsdb.v1.Rows
+	16, // 25: modsdb.v1.ModsDB.Stats:output_type -> modsdb.v1.StatsResponse
+	19, // [19:26] is the sub-list for method output_type
+	12, // [12:19] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_modsdb_v1_modsdb_proto_init() }
@@ -1601,18 +1150,17 @@ func file_modsdb_v1_modsdb_proto_init() {
 	if File_modsdb_v1_modsdb_proto != nil {
 		return
 	}
-	file_modsdb_v1_modsdb_proto_msgTypes[2].OneofWrappers = []any{
+	file_modsdb_v1_modsdb_proto_msgTypes[1].OneofWrappers = []any{
 		(*Value_I)(nil),
 		(*Value_F)(nil),
-		(*Value_T)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_modsdb_v1_modsdb_proto_rawDesc), len(file_modsdb_v1_modsdb_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   24,
+			NumEnums:      2,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

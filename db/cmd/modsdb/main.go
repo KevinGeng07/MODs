@@ -18,7 +18,7 @@ import (
 )
 
 func main() {
-	dir := flag.String("data-dir", "./modsdb-data", "directory for WAL, snapshots and checkpoints")
+	dir := flag.String("data-dir", "./modsdb-data", "directory for the WAL and snapshots")
 	addr := flag.String("addr", "127.0.0.1:7070", "listen address")
 	snapEvery := flag.Int64("snapshot-every", 16<<20, "WAL bytes between automatic snapshots")
 	flag.Parse()
@@ -31,6 +31,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// A run's first commit holds one row per training sample (about 10 MB for MNIST).
 	gs := grpc.NewServer(grpc.MaxRecvMsgSize(256<<20), grpc.MaxSendMsgSize(256<<20))
 	pb.RegisterModsDBServer(gs, server.New(e))
 

@@ -2,7 +2,6 @@ package engine
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"math/rand"
 	"os"
@@ -164,41 +163,6 @@ func TestCrashRecoveryProperty(t *testing.T) {
 	}
 }
 
-func TestCheckpointRestore(t *testing.T) {
-	dir := t.TempDir()
-	e := open(t, dir, 0)
-	e.CreateTable("t", schema)
-	apply(t, e, op(pb.Op_PUT, 1, map[string]*pb.Value{"y": I(1)}))
-	want := dump(t, e)
-	c, err := e.CreateCheckpoint("c", []byte("weights"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	apply(t, e, op(pb.Op_INCR, 1, map[string]*pb.Value{"seen": I(10)}), op(pb.Op_PUT, 2, nil))
-	before := e.Stats().LastLsn
-	_, blob, lsn, err := e.RestoreCheckpoint(c.Id)
-	if err != nil || string(blob) != "weights" || lsn <= before {
-		t.Fatalf("restore: blob=%q lsn=%d err=%v", blob, lsn, err)
-	}
-	if fmt.Sprint(dump(t, e)) != fmt.Sprint(want) {
-		t.Fatalf("after restore %v, want %v", dump(t, e), want)
-	}
-	next := apply(t, e, op(pb.Op_INCR, 1, map[string]*pb.Value{"seen": I(1)}))
-	after := dump(t, e)
-	img := crashImage(t, dir)
-	e.Close()
-	for _, d := range []string{img, dir} {
-		r := open(t, d, 0)
-		if fmt.Sprint(dump(t, r)) != fmt.Sprint(after) || r.Stats().LastLsn != next || len(r.ListCheckpoints()) != 1 {
-			t.Fatalf("reopen %s: %v lsn %d", d, dump(t, r), r.Stats().LastLsn)
-		}
-		r.Close()
-	}
-	if _, _, _, err := open(t, dir, 0).RestoreCheckpoint("nope"); !errors.Is(err, ErrNotFound) {
-		t.Fatalf("missing checkpoint: %v", err)
-	}
-}
-
 func TestConcurrentWritersGroupCommit(t *testing.T) {
 	e := open(t, t.TempDir(), 0)
 	defer e.Close()
@@ -227,21 +191,10 @@ func TestConcurrentWritersGroupCommit(t *testing.T) {
 	}
 }
 
-func TestUint8TensorsAndDropTable(t *testing.T) {
+func TestDropTable(t *testing.T) {
 	dir := t.TempDir()
 	e := open(t, dir, 0)
-	img := &pb.Schema{Columns: []*pb.Column{{Name: "x", Type: pb.ColumnType_TENSOR}}}
-	e.CreateTable("imgs", img)
 	e.CreateTable("t", schema)
-	u8 := &pb.Value{V: &pb.Value_T{T: &pb.Tensor{Shape: []int64{2, 2}, Data: []byte{0, 1, 2, 255}, Dtype: pb.DType_U8}}}
-	if _, err := e.Apply(&pb.WriteBatch{Ops: []*pb.Op{{Table: "imgs", Id: 1, Kind: pb.Op_PUT, Cols: map[string]*pb.Value{"x": u8}}}}); err != nil {
-		t.Fatal(err)
-	}
-	// 4 bytes is right for a 2x2 uint8 tensor but wrong for float32.
-	f32 := &pb.Value{V: &pb.Value_T{T: &pb.Tensor{Shape: []int64{2, 2}, Data: []byte{0, 1, 2, 255}}}}
-	if _, err := e.Apply(&pb.WriteBatch{Ops: []*pb.Op{{Table: "imgs", Id: 2, Kind: pb.Op_PUT, Cols: map[string]*pb.Value{"x": f32}}}}); !errors.Is(err, ErrInvalid) {
-		t.Fatalf("float32 size check: %v", err)
-	}
 	apply(t, e, op(pb.Op_PUT, 1, map[string]*pb.Value{"y": I(1)}))
 	if _, err := e.DropTable("t"); err != nil {
 		t.Fatal(err)
@@ -252,15 +205,11 @@ func TestUint8TensorsAndDropTable(t *testing.T) {
 	if _, err := e.DropTable("t"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("double drop: %v", err)
 	}
-	// Both the drop and the uint8 row survive a crash image and a clean reopen.
-	img2 := crashImage(t, dir)
+	// The drop survives a crash image and a clean reopen.
+	img := crashImage(t, dir)
 	e.Close()
-	for _, d := range []string{img2, dir} {
+	for _, d := range []string{img, dir} {
 		r := open(t, d, 0)
-		rows, err := r.GetRows("imgs", []uint64{1}, nil)
-		if err != nil || len(rows) != 1 || rows[0].Cols["x"].GetT().Dtype != pb.DType_U8 {
-			t.Fatalf("%s: uint8 row = %v %v", d, rows, err)
-		}
 		if _, err := r.Scan(&pb.ScanRequest{Table: "t"}); !errors.Is(err, ErrNotFound) {
 			t.Fatalf("%s: drop not durable: %v", d, err)
 		}

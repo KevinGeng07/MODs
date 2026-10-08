@@ -19,23 +19,20 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ModsDB_CreateTable_FullMethodName       = "/modsdb.v1.ModsDB/CreateTable"
-	ModsDB_DropTable_FullMethodName         = "/modsdb.v1.ModsDB/DropTable"
-	ModsDB_GetRows_FullMethodName           = "/modsdb.v1.ModsDB/GetRows"
-	ModsDB_Scan_FullMethodName              = "/modsdb.v1.ModsDB/Scan"
-	ModsDB_Apply_FullMethodName             = "/modsdb.v1.ModsDB/Apply"
-	ModsDB_FetchAndMark_FullMethodName      = "/modsdb.v1.ModsDB/FetchAndMark"
-	ModsDB_CreateCheckpoint_FullMethodName  = "/modsdb.v1.ModsDB/CreateCheckpoint"
-	ModsDB_ListCheckpoints_FullMethodName   = "/modsdb.v1.ModsDB/ListCheckpoints"
-	ModsDB_RestoreCheckpoint_FullMethodName = "/modsdb.v1.ModsDB/RestoreCheckpoint"
-	ModsDB_Stats_FullMethodName             = "/modsdb.v1.ModsDB/Stats"
+	ModsDB_CreateTable_FullMethodName  = "/modsdb.v1.ModsDB/CreateTable"
+	ModsDB_DropTable_FullMethodName    = "/modsdb.v1.ModsDB/DropTable"
+	ModsDB_GetRows_FullMethodName      = "/modsdb.v1.ModsDB/GetRows"
+	ModsDB_Scan_FullMethodName         = "/modsdb.v1.ModsDB/Scan"
+	ModsDB_Apply_FullMethodName        = "/modsdb.v1.ModsDB/Apply"
+	ModsDB_FetchAndMark_FullMethodName = "/modsdb.v1.ModsDB/FetchAndMark"
+	ModsDB_Stats_FullMethodName        = "/modsdb.v1.ModsDB/Stats"
 )
 
 // ModsDBClient is the client API for ModsDB service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// modsdb MVP API. The same messages are the WAL record payloads.
+// modsdb API. The same messages are the WAL record payloads.
 type ModsDBClient interface {
 	CreateTable(ctx context.Context, in *CreateTableRequest, opts ...grpc.CallOption) (*CommitAck, error)
 	DropTable(ctx context.Context, in *DropTableRequest, opts ...grpc.CallOption) (*CommitAck, error)
@@ -43,9 +40,6 @@ type ModsDBClient interface {
 	Scan(ctx context.Context, in *ScanRequest, opts ...grpc.CallOption) (*Rows, error)
 	Apply(ctx context.Context, in *WriteBatch, opts ...grpc.CallOption) (*CommitAck, error)
 	FetchAndMark(ctx context.Context, in *FetchAndMarkRequest, opts ...grpc.CallOption) (*Rows, error)
-	CreateCheckpoint(ctx context.Context, in *CreateCheckpointRequest, opts ...grpc.CallOption) (*Checkpoint, error)
-	ListCheckpoints(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*CheckpointList, error)
-	RestoreCheckpoint(ctx context.Context, in *RestoreCheckpointRequest, opts ...grpc.CallOption) (*RestoreCheckpointResponse, error)
 	Stats(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*StatsResponse, error)
 }
 
@@ -117,36 +111,6 @@ func (c *modsDBClient) FetchAndMark(ctx context.Context, in *FetchAndMarkRequest
 	return out, nil
 }
 
-func (c *modsDBClient) CreateCheckpoint(ctx context.Context, in *CreateCheckpointRequest, opts ...grpc.CallOption) (*Checkpoint, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Checkpoint)
-	err := c.cc.Invoke(ctx, ModsDB_CreateCheckpoint_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *modsDBClient) ListCheckpoints(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*CheckpointList, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CheckpointList)
-	err := c.cc.Invoke(ctx, ModsDB_ListCheckpoints_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *modsDBClient) RestoreCheckpoint(ctx context.Context, in *RestoreCheckpointRequest, opts ...grpc.CallOption) (*RestoreCheckpointResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RestoreCheckpointResponse)
-	err := c.cc.Invoke(ctx, ModsDB_RestoreCheckpoint_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *modsDBClient) Stats(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*StatsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(StatsResponse)
@@ -161,7 +125,7 @@ func (c *modsDBClient) Stats(ctx context.Context, in *Empty, opts ...grpc.CallOp
 // All implementations must embed UnimplementedModsDBServer
 // for forward compatibility.
 //
-// modsdb MVP API. The same messages are the WAL record payloads.
+// modsdb API. The same messages are the WAL record payloads.
 type ModsDBServer interface {
 	CreateTable(context.Context, *CreateTableRequest) (*CommitAck, error)
 	DropTable(context.Context, *DropTableRequest) (*CommitAck, error)
@@ -169,9 +133,6 @@ type ModsDBServer interface {
 	Scan(context.Context, *ScanRequest) (*Rows, error)
 	Apply(context.Context, *WriteBatch) (*CommitAck, error)
 	FetchAndMark(context.Context, *FetchAndMarkRequest) (*Rows, error)
-	CreateCheckpoint(context.Context, *CreateCheckpointRequest) (*Checkpoint, error)
-	ListCheckpoints(context.Context, *Empty) (*CheckpointList, error)
-	RestoreCheckpoint(context.Context, *RestoreCheckpointRequest) (*RestoreCheckpointResponse, error)
 	Stats(context.Context, *Empty) (*StatsResponse, error)
 	mustEmbedUnimplementedModsDBServer()
 }
@@ -200,15 +161,6 @@ func (UnimplementedModsDBServer) Apply(context.Context, *WriteBatch) (*CommitAck
 }
 func (UnimplementedModsDBServer) FetchAndMark(context.Context, *FetchAndMarkRequest) (*Rows, error) {
 	return nil, status.Error(codes.Unimplemented, "method FetchAndMark not implemented")
-}
-func (UnimplementedModsDBServer) CreateCheckpoint(context.Context, *CreateCheckpointRequest) (*Checkpoint, error) {
-	return nil, status.Error(codes.Unimplemented, "method CreateCheckpoint not implemented")
-}
-func (UnimplementedModsDBServer) ListCheckpoints(context.Context, *Empty) (*CheckpointList, error) {
-	return nil, status.Error(codes.Unimplemented, "method ListCheckpoints not implemented")
-}
-func (UnimplementedModsDBServer) RestoreCheckpoint(context.Context, *RestoreCheckpointRequest) (*RestoreCheckpointResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method RestoreCheckpoint not implemented")
 }
 func (UnimplementedModsDBServer) Stats(context.Context, *Empty) (*StatsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Stats not implemented")
@@ -342,60 +294,6 @@ func _ModsDB_FetchAndMark_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ModsDB_CreateCheckpoint_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateCheckpointRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ModsDBServer).CreateCheckpoint(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ModsDB_CreateCheckpoint_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ModsDBServer).CreateCheckpoint(ctx, req.(*CreateCheckpointRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ModsDB_ListCheckpoints_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ModsDBServer).ListCheckpoints(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ModsDB_ListCheckpoints_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ModsDBServer).ListCheckpoints(ctx, req.(*Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ModsDB_RestoreCheckpoint_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RestoreCheckpointRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ModsDBServer).RestoreCheckpoint(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ModsDB_RestoreCheckpoint_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ModsDBServer).RestoreCheckpoint(ctx, req.(*RestoreCheckpointRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _ModsDB_Stats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Empty)
 	if err := dec(in); err != nil {
@@ -444,18 +342,6 @@ var ModsDB_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FetchAndMark",
 			Handler:    _ModsDB_FetchAndMark_Handler,
-		},
-		{
-			MethodName: "CreateCheckpoint",
-			Handler:    _ModsDB_CreateCheckpoint_Handler,
-		},
-		{
-			MethodName: "ListCheckpoints",
-			Handler:    _ModsDB_ListCheckpoints_Handler,
-		},
-		{
-			MethodName: "RestoreCheckpoint",
-			Handler:    _ModsDB_RestoreCheckpoint_Handler,
 		},
 		{
 			MethodName: "Stats",

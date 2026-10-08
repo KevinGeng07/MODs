@@ -1,10 +1,10 @@
 """Tables, a deterministic batch sampler, and a Dataset that marks rows QUEUED
-in modsdb as DataLoader workers prefetch them.
+in modsdb as DataLoader workers load them from the user's Dataset.
 
-Layout: `train` / `val` hold the dataset (x, y). Each run gets its own table
-`run<N>` with one row per training sample holding only that run's training
-state. The pixels are read from `train`; a run's table is dropped when the run
-ends. The history tables hold only the current run (see clear_history)."""
+The samples themselves never enter modsdb. Each run gets its own table
+`run<N>` with one row per training sample (row i + 1 = sample i) holding only
+that run's training state; it is dropped when the run ends. The history tables
+hold only the current run (see clear_history)."""
 
 from __future__ import annotations
 
@@ -15,13 +15,12 @@ from torch.utils.data import Dataset, get_worker_info
 
 from .db import IDLE, QUEUED, DBError, put
 
-DATA_SCHEMA = {"x": "tensor", "y": "int64"}
+# One row per training sample in a run's table `run<N>` (id = sample index + 1): its state in this run.
 RUN_ROWS_SCHEMA = {"status": "int64", "epoch": "int64", "worker": "int64", "batch": "int64", "seen": "int64",
                    "loss": "float64", "pred": "int64", "step": "int64"}
 META_SCHEMA = {"runs": "int64"}  # row 1: number of runs ever started
-# One row per run (id = run): settings plus its live position.
-RUNS_SCHEMA = {"batch_size": "int64", "workers": "int64", "prefetch": "int64", "started_ms": "int64",
-               "epoch": "int64", "step": "int64", "batch": "int64"}
+# One row per run (id = run): its settings and latest step.
+RUNS_SCHEMA = {"batch_size": "int64", "workers": "int64", "step": "int64"}
 # One row per consumed batch: id = step_id(run, step).
 STEPS_SCHEMA = {"run": "int64", "step": "int64", "epoch": "int64", "batch": "int64", "worker": "int64",
                 "n": "int64", "loss": "float64", "acc": "float64"}
@@ -52,7 +51,7 @@ HISTORY_TABLES = (("runs", RUNS_SCHEMA), ("steps", STEPS_SCHEMA), ("batch_sample
 
 def setup_tables(client) -> None:
     """Create any missing shared tables (CreateTable is idempotent)."""
-    for name, schema in (("train", DATA_SCHEMA), ("val", DATA_SCHEMA), ("meta", META_SCHEMA), *HISTORY_TABLES):
+    for name, schema in (("meta", META_SCHEMA), *HISTORY_TABLES):
         client.create_table(name, schema)
     if not client.get_rows("meta", [1]):
         client.apply([put("meta", 1, {"runs": 0})])
@@ -71,20 +70,15 @@ def clear_history(client) -> None:
         client.create_table(name, schema)
 
 
-def load_samples(client, table: str, xs: torch.Tensor, ys: Sequence[int]) -> None:
-    rows = [put(table, i + 1, {"x": xs[i], "y": int(ys[i])}) for i in range(len(ys))]
-    for i in range(0, len(rows), 500):
-        client.apply(rows[i:i + 500], tag="load")
-
-
 def fresh_run_rows(table: str, ids) -> list:
     """Puts that give a run one clean training-state row per sample."""
     return [put(table, i, {"status": IDLE, "epoch": -1, "worker": -1, "batch": -1, "seen": 0, "loss": 0.0,
                            "pred": -1, "step": -1}) for i in ids]
 
 
-def as_input(x: torch.Tensor) -> torch.Tensor:
-    """Stored images are uint8 (0-255); the model sees float32 in [0, 1]."""
+def as_input(x) -> torch.Tensor:
+    """A sample's input as float32. uint8 images (0-255) are scaled to [0, 1]."""
+    x = torch.as_tensor(x)
     return x.float() / 255 if x.dtype == torch.uint8 else x.float()
 
 
@@ -112,11 +106,11 @@ def collate(batch):
 
 class DBDataset(Dataset):
     """Per batch: one FetchAndMark on the run's table (marks the rows QUEUED
-    with the fetching worker and batch index, atomically), then one read of
-    the pixels and labels from the shared `train` table."""
+    with the fetching worker and batch index, atomically), then the samples
+    are loaded from the user's Dataset."""
 
-    def __init__(self, client, table: str, data_table: str = "train"):
-        self.client, self.table, self.data_table = client, table, data_table
+    def __init__(self, client, table: str, dataset):
+        self.client, self.table, self.dataset = client, table, dataset
 
     def __getitems__(self, items):
         epoch, batch = items[0][0], items[0][1]
@@ -125,6 +119,7 @@ class DBDataset(Dataset):
         marked = self.client.fetch_and_mark(self.table, [rid for _, _, rid in items],
                                             {"status": QUEUED, "epoch": epoch, "worker": worker, "batch": batch},
                                             columns=["status"], tag=f"fetch:{self.table}:w{worker}")
-        rows = self.client.get_rows(self.data_table, [r.id for r in marked], ["x", "y"])
-        return {"ids": [r.id for r in rows], "x": torch.stack([as_input(r["x"]) for r in rows]),
-                "y": torch.tensor([r["y"] for r in rows]), "epoch": epoch, "batch": batch, "worker": worker}
+        ids = [r.id for r in marked]
+        samples = [self.dataset[rid - 1] for rid in ids]
+        return {"ids": ids, "x": torch.stack([as_input(x) for x, _ in samples]),
+                "y": torch.tensor([int(y) for _, y in samples]), "epoch": epoch, "batch": batch, "worker": worker}

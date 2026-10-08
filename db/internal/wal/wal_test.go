@@ -28,7 +28,7 @@ func writeN(t *testing.T, dir string, first, n uint64, maxSeg int64) {
 func replayAll(t *testing.T, dir string, from uint64) ([]Record, ReplayResult) {
 	t.Helper()
 	var got []Record
-	res, err := Replay(dir, from, false, func(r Record) error { got = append(got, r); return nil })
+	res, err := Replay(dir, from, func(r Record) error { got = append(got, r); return nil })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,15 +67,15 @@ func TestRotationAndTruncate(t *testing.T) {
 	if err := w.Sync(); err != nil {
 		t.Fatal(err)
 	}
-	if w.Segments() < 5 {
-		t.Fatalf("expected rotation, got %d segments", w.Segments())
+	before, _ := listSegments(dir)
+	if len(before) < 5 {
+		t.Fatalf("expected rotation, got %d segments", len(before))
 	}
-	before := w.Size()
 	if err := w.TruncateThrough(30); err != nil {
 		t.Fatal(err)
 	}
-	if w.Size() >= before {
-		t.Fatalf("size did not shrink: %d -> %d", before, w.Size())
+	if after, _ := listSegments(dir); len(after) >= len(before) {
+		t.Fatalf("no segments removed: %d -> %d", len(before), len(after))
 	}
 	w.Close()
 	got, _ := replayAll(t, dir, 30)
@@ -133,16 +133,8 @@ func TestCorruptEarlierSegmentRefuses(t *testing.T) {
 	b, _ := os.ReadFile(path)
 	b[headerSize] ^= 0xff
 	os.WriteFile(path, b, 0o644)
-	_, err := Replay(dir, 0, false, func(Record) error { return nil })
+	_, err := Replay(dir, 0, func(Record) error { return nil })
 	if !errors.Is(err, ErrCorrupt) {
 		t.Fatalf("want ErrCorrupt, got %v", err)
-	}
-	var n int
-	res, err := Replay(dir, 0, true, func(Record) error { n++; return nil })
-	if err != nil || n != 0 || !res.TruncatedTail {
-		t.Fatalf("force: n=%d err=%v res=%+v", n, err, res)
-	}
-	if segs, _ := listSegments(dir); len(segs) != 1 {
-		t.Fatalf("later segments not removed: %d", len(segs))
 	}
 }

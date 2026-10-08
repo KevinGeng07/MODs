@@ -8,20 +8,19 @@
   /* Light, muted, monospace. Hairline rules, one quiet slate-teal accent. System fonts only. */
   :root { color-scheme: light;
     --bg:#f5f6f7; --panel:#ffffff; --soft:#eef0f2; --line:#e1e4e8; --line2:#c9ced5;
-    --text:#000000; --dim:#000000; --faint:#000000; --accent:#2f6b67; --on-accent:#ffffff;
+    --text:#000000; --accent:#2f6b67;
     --w0:#4a72b0; --w1:#b0587f; --w2:#a07a2c; --good:#2f7a4f; --bad:#b4453a;
     --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace; }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.5 var(--mono); font-variant-numeric: tabular-nums; }
-  .muted { color: var(--dim); font-size: 11.5px; margin: 0; }
-  .ok, .no { color: var(--text); }
+  .muted { font-size: 11.5px; margin: 0; }
   button { font: 500 12px var(--mono); letter-spacing: .04em; padding: 6px 14px; border-radius: 2px; cursor: pointer;
     border: 1px solid var(--line2); background: transparent; color: var(--text); }
-  button:hover { border-color: var(--dim); }
+  button:hover { border-color: var(--text); }
   button.ink { background: var(--text); border-color: var(--text); color: var(--panel); font-weight: 600; }
   button.ink:hover { background: #3a4048; }
-  button:focus-visible, input:focus-visible, select:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
-  select, input[type=number] { font: 12px var(--mono); padding: 5px 8px; border-radius: 2px; border: 1px solid var(--line2); background: var(--panel); color: var(--text); }
+  button:focus-visible, input:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+  input[type=number] { font: 12px var(--mono); padding: 5px 8px; border-radius: 2px; border: 1px solid var(--line2); background: var(--panel); color: var(--text); }
 
   /* ---- header */
   header { position: sticky; top: 0; z-index: 2; background: var(--panel); border-bottom: 1px solid var(--line); }
@@ -35,7 +34,7 @@
   .counters > div { padding: 10px 24px 12px; border-right: 1px solid var(--line); min-width: 0; }
   .counters > div:last-child { border-right: 0; }
   .label { display: block; font: 12px var(--mono); margin-bottom: 2px; }
-  .big { display: block; font: 600 40px/1 var(--mono); letter-spacing: -.02em; color: var(--text); }
+  .big { display: block; font: 600 40px/1 var(--mono); letter-spacing: -.02em; }
 
   .bump .big { animation: bump .3s ease-out; }
   @keyframes bump { from { opacity: .35; } }
@@ -43,7 +42,7 @@
   .tape i { flex: 1; min-width: 1px; background: var(--soft); }
   .tape i.done { background: var(--text); }
   .tape i.q { background: var(--line2); }
-  .tape i.next { background: var(--line2); outline: 1.5px solid var(--text); position: relative; }
+  .tape i.next { background: var(--line2); outline: 1.5px solid var(--text); }
   .tape.solid { background: linear-gradient(90deg, var(--text) var(--p), var(--soft) var(--p)); } .tape.solid i { display: none; }
   #loss { font: 600 20px/1.2 var(--mono); }
   @media (max-width: 900px) {
@@ -75,12 +74,11 @@
   .batches { display: flex; gap: 6px; flex-wrap: wrap; }
   .batch { font: 11px var(--mono); padding: 5px 8px; border: 1px solid var(--line); border-left: 2px solid var(--c); background: var(--panel); }
   .batch.next { border-color: var(--text); border-left-color: var(--c); }
-  .batch .bh { display: flex; justify-content: space-between; gap: 10px; color: var(--dim); margin-bottom: 3px; }
-  .batch.next .bh b { color: var(--text); }
+  .batch .bh { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 3px; }
 
-  .ids { display: grid; grid-template-columns: repeat(8, auto); gap: 1px 8px; font: 11px/1.5 var(--mono); color: var(--text); }
+  .ids { display: grid; grid-template-columns: repeat(8, auto); gap: 1px 8px; font: 11px/1.5 var(--mono); }
   .more { display: block; font: 11px var(--mono); margin-top: 3px; }
-  .empty { font: 11px var(--mono); padding: 6px 10px; border: 1px dashed var(--line2); color: var(--faint); }
+  .empty { font: 11px var(--mono); padding: 6px 10px; border: 1px dashed var(--line2); }
 
   /* ---- modsdb */
   .db { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
@@ -93,28 +91,29 @@
   th { position: sticky; top: 0; z-index: 1; background: var(--soft); font-weight: 700; font-size: 11.5px; }
   tbody tr:hover td { background: var(--soft); }
   th:first-child, td:first-child { text-align: left; width: 1%; }
-  .exp { font-size: 10px; padding: 0 6px; line-height: 18px; text-transform: none; }
+  .exp { font-size: 10px; padding: 0 6px; line-height: 18px; }
   tr.open > td { background: var(--soft); font-weight: 700; }
-  tr.detail > td { background: var(--soft); padding: 8px 10px 12px; text-align: left; white-space: normal; color: var(--text); }
+  tr.detail > td { background: var(--soft); padding: 8px 10px 12px; text-align: left; white-space: normal; }
   .sgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 3px; }
-  .scell { display: flex; justify-content: space-between; gap: 8px; padding: 3px 8px; font: 11px var(--mono); color: var(--dim);
+  .scell { display: flex; justify-content: space-between; gap: 8px; padding: 3px 8px; font: 11px var(--mono);
     background: var(--panel); border: 1px solid var(--line); border-left: 2px solid var(--good); }
   .scell.wrong { border-left-color: var(--bad); }
-  .scell b { color: var(--text); font-weight: 600; }
+  .scell b { font-weight: 600; }
 
   /* ---- validation */
   .vgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
-  .vcell { padding: 5px 2px; display: grid; justify-items: center; gap: 2px; font: 10.5px var(--mono); color: var(--dim);
-    border: 1px solid var(--line); background: var(--panel); text-transform: none; letter-spacing: 0; }
+  .vcell { padding: 5px 2px; display: grid; justify-items: center; gap: 2px; font: 10.5px var(--mono);
+    border: 1px solid var(--line); background: var(--panel); letter-spacing: 0; }
   .vcell.sel { border-color: var(--accent); }
   .vcell canvas { width: 100%; max-width: 52px; aspect-ratio: 1; image-rendering: pixelated; }
+  .vcell .vtxt { display: grid; place-items: center; width: 100%; max-width: 52px; aspect-ratio: 1; border: 1px dashed var(--line2); }
   .vbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
   #acc { margin-top: 12px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
   #acc b { font: 600 26px/1 var(--mono); }
   .probs { display: grid; gap: 2px; margin-top: 10px; }
-  .probs div { display: grid; grid-template-columns: 14px 1fr 46px; gap: 8px; align-items: center; font: 11px var(--mono); color: var(--dim); }
+  .probs div { display: grid; grid-template-columns: var(--lw, 14px) 1fr 46px; gap: 8px; align-items: center; font: 11px var(--mono); }
   .probs i { display: block; height: 8px; background: var(--line2); min-width: 1px; }
-  .probs .t { color: var(--text); } .probs .t i { background: var(--accent); }
+  .probs .t i { background: var(--accent); }
 
   /* ---- graph */
   .graph-sec { flex: 1; display: flex; flex-direction: column; }
@@ -123,8 +122,8 @@
   .node { flex: 1 1 0; min-width: 0; border: 1px solid var(--line2); padding: 6px 0; font: 600 10px/1.3 var(--mono); letter-spacing: -.04em; background: var(--panel);
     display: flex; flex-direction: column; justify-content: center; text-align: center; white-space: pre-line; overflow-wrap: anywhere; overflow: hidden; }
   .node.io { border-style: dashed; }
-  .node span { margin-top: 4px; color: var(--faint); font-weight: 400; }
-  .arrow { align-self: center; color: var(--faint); font: 9px var(--mono); }
+  .node span { margin-top: 4px; font-weight: 400; }
+  .arrow { align-self: center; font: 9px var(--mono); }
 
   /* ---- overlays */
   .overlay { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--bg) 96%, transparent); }
@@ -141,7 +140,7 @@
     <h2>mods_ · Start Training</h2>
     <label>Batch size (samples per training step) <input id="cfg-bs" type="number" min="1" max="999" value="64" required></label>
     <label>Data loader workers (processes that prepare batches) <input id="cfg-w" type="number" min="0" max="8" value="2" required></label>
-    <p id="setup-err" class="no" style="margin:0; font-size:12px"></p>
+    <p id="setup-err" style="margin:0; font-size:12px"></p>
     <button class="ink">Start training</button>
   </form>
 </div>
@@ -204,11 +203,13 @@
 const $ = (s) => document.querySelector(s);
 const f3 = (v) => (v == null ? "—" : Number(v).toFixed(3));
 const pct = (v) => `${Math.round(100 * v)}%`;
-const pad = (n, w) => { const s = String(n); return s.length >= w ? s : `<span class="dim">${"0".repeat(w - s.length)}</span>${s}`; };
 const SHOW_IDS = 16;  // list at most this many sample indices per batch
 const more = (n) => (n > SHOW_IDS ? `<span class="more">+${n - SHOW_IDS} more</span>` : "");
 const lane = (w) => `var(--w${Math.max(w, 0) % 3})`;
 let S = null, RUN = null, ended = false;
+let NAME = "", CLASSES = [];
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const cls = (i) => esc(CLASSES[i] ?? i);  // a label's name
 let valKey = null, valSamples = [], lastEval = null, selected = null;
 
 async function call(url, opts = {}) {
@@ -232,7 +233,7 @@ function endRun(msg) {
 let prev = {};
 function bump(id) { const el = $(id); el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); }
 function renderHeader(s) {
-  $("#run").textContent = `batch size: ${s.batch_size}. workers: ${s.num_workers}.`;
+  $("#run").textContent = `model: ${NAME}. batch size: ${s.batch_size}. workers: ${s.num_workers}.`;
   $("#btn-run").textContent = s.running ? "Pause" : "Run";
   $("#epoch").textContent = s.epoch;
   $("#step").textContent = s.step;
@@ -286,12 +287,20 @@ async function poll() {
 
 // ---- images
 function draw(canvas, img) {
+  const rgb = Array.isArray(img[0][0]);  // 3×H×W, else H×W
+  const planes = rgb ? img : [img], h = planes[0].length, w = planes[0][0].length;
   const ctx = canvas.getContext("2d");
-  canvas.width = img[0].length; canvas.height = img.length;
-  const flat = img.flat(), lo = Math.min(...flat), hi = Math.max(...flat) || 1;
-  const data = ctx.createImageData(canvas.width, canvas.height);
-  // dark strokes on white: ink = #1f2328
-  flat.forEach((p, i) => { const t = (p - lo) / (hi - lo || 1); data.data.set([255 - t * 224, 255 - t * 220, 255 - t * 215, 255], i * 4); });
+  canvas.width = w; canvas.height = h;
+  let lo = Infinity, hi = -Infinity;
+  for (const v of planes.flat(2)) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  const t = (v) => (v - lo) / (hi - lo || 1);
+  const data = ctx.createImageData(w, h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x;
+    // RGB in true colour; grayscale as dark strokes on white (ink = #1f2328)
+    const px = rgb ? planes.map((p) => 255 * t(p[y][x])) : [0, 1, 2].map((c) => 255 - t(img[y][x]) * [224, 220, 215][c]);
+    data.data.set([...px, 255], i * 4);
+  }
   ctx.putImageData(data, 0, 0);
 }
 
@@ -301,8 +310,8 @@ const open = new Set();          // seqs whose samples are expanded
 const sampleCache = new Map();   // seq -> samples response (a logged batch never changes)
 function samplesRow(b) {
   const wrong = b.samples.filter((x) => !x.correct).length;
-  return `<tr class="detail" data-for="${b.seq}"><td colspan="9"><p class="muted" style="margin:0 0 6px">Sample number · true digit → predicted digit · loss. ${wrong} of ${b.samples.length} predicted wrong.</p><div class="sgrid">${b.samples.slice(0, SHOW_IDS).map((x) =>
-    `<div class="scell${x.correct ? "" : " wrong"}"><b>#${x.sample}</b><span>${x.label} → <b>${x.pred}</b> ${x.correct ? "✓" : "✕"}</span><span>${f3(x.loss)}</span></div>`).join("")}</div>${more(b.samples.length)}</td></tr>`;
+  return `<tr class="detail"><td colspan="9"><p class="muted" style="margin:0 0 6px">Sample number · true label → predicted label · loss. ${wrong} of ${b.samples.length} predicted wrong.</p><div class="sgrid">${b.samples.slice(0, SHOW_IDS).map((x) =>
+    `<div class="scell${x.correct ? "" : " wrong"}"><b>#${x.sample}</b><span>${cls(x.label)} → <b>${cls(x.pred)}</b> ${x.correct ? "✓" : "✕"}</span><span>${f3(x.loss)}</span></div>`).join("")}</div>${more(b.samples.length)}</td></tr>`;
 }
 async function loadBatchLog() {
   const rows = await get(api("/batches?limit=50"));
@@ -337,18 +346,20 @@ function renderVal() {
   const byId = new Map((lastEval?.samples || []).map((x) => [x.val_id, x]));
   $("#vgrid").innerHTML = valSamples.map((v) => {
     const e = byId.get(v.val_id);
-    const res = e ? `<b>guess ${e.pred} ${e.pred === e.target ? "✓" : "✕"}</b>` : `<span>not checked</span>`;
-    return `<button class="vcell${v.val_id === selected ? " sel" : ""}" data-id="${v.val_id}"><canvas></canvas><span>digit ${v.y}</span>${res}</button>`;
+    const res = e ? `<b>guess ${cls(e.pred)} ${e.pred === e.target ? "✓" : "✕"}</b>` : `<span>not checked</span>`;
+    const pic = v.x ? `<canvas></canvas>` : `<span class="vtxt">#${v.val_id}</span>`;
+    return `<button class="vcell${v.val_id === selected ? " sel" : ""}" data-id="${v.val_id}">${pic}<span>label ${cls(v.y)}</span>${res}</button>`;
   }).join("");
   document.querySelectorAll(".vcell").forEach((b, k) => {
-    draw(b.querySelector("canvas"), valSamples[k].x);
+    if (valSamples[k].x) draw(b.querySelector("canvas"), valSamples[k].x);
     b.onclick = () => { selected = Number(b.dataset.id); renderVal(); };
   });
-  $("#acc").innerHTML = lastEval ? `<b>${pct(lastEval.acc)}</b><span>of these 10 guessed correctly (at step ${lastEval.step}). Click a digit to see the model's confidence.</span>` : "";
+  $("#acc").innerHTML = lastEval ? `<b>${pct(lastEval.acc)}</b><span>of these 10 guessed correctly (at step ${lastEval.step}). Click a sample to see the model's confidence.</span>` : "";
   const e = byId.get(selected);
-  $("#dist").innerHTML = !e ? "" : `<div class="probs">${e.probs.map((p, i) =>
-    `<div class="${i === e.target ? "t" : ""}"><span>${i}</span><span><i style="width:${100 * p}%"></i></span><span>${(100 * p).toFixed(1)}%</span></div>`).join("")}</div>
-    <p class="muted" style="margin-top:4px">How confident the model is that sample #${e.val_id} is each digit 0–9. The true digit (${e.target}) is highlighted.</p>`;
+  const lw = Math.max(...CLASSES.map((c) => String(c).length), 1);
+  $("#dist").innerHTML = !e ? "" : `<div class="probs" style="--lw:${lw}ch">${e.probs.map((p, i) =>
+    `<div class="${i === e.target ? "t" : ""}"><span>${cls(i)}</span><span><i style="width:${100 * p}%"></i></span><span>${(100 * p).toFixed(1)}%</span></div>`).join("")}</div>
+    <p class="muted" style="margin-top:4px">How confident the model is that sample #${e.val_id} is each class. The true label (${cls(e.target)}) is highlighted.</p>`;
 }
 
 // ---- controls (buttons + keys S, R, E, X)
@@ -373,6 +384,7 @@ addEventListener("keydown", (e) => {
   if (act) { e.preventDefault(); act(); }
 });
 
+get("/api/info").then((i) => { NAME = i.name; CLASSES = i.classes; });
 get("/api/graph").then((g) => {
   $("#gdesc").textContent = `${g.total_params.toLocaleString()} learned parameters`;
   $("#graph").innerHTML = g.nodes.map((n) =>

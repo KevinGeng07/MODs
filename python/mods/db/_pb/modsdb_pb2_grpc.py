@@ -26,7 +26,7 @@ if _version_not_supported:
 
 
 class ModsDBStub:
-    """modsdb MVP API. The same messages are the WAL record payloads.
+    """modsdb API. The same messages are the WAL record payloads.
     """
 
     def __init__(self, channel):
@@ -65,21 +65,6 @@ class ModsDBStub:
                 request_serializer=modsdb__pb2.FetchAndMarkRequest.SerializeToString,
                 response_deserializer=modsdb__pb2.Rows.FromString,
                 _registered_method=True)
-        self.CreateCheckpoint = channel.unary_unary(
-                '/modsdb.v1.ModsDB/CreateCheckpoint',
-                request_serializer=modsdb__pb2.CreateCheckpointRequest.SerializeToString,
-                response_deserializer=modsdb__pb2.Checkpoint.FromString,
-                _registered_method=True)
-        self.ListCheckpoints = channel.unary_unary(
-                '/modsdb.v1.ModsDB/ListCheckpoints',
-                request_serializer=modsdb__pb2.Empty.SerializeToString,
-                response_deserializer=modsdb__pb2.CheckpointList.FromString,
-                _registered_method=True)
-        self.RestoreCheckpoint = channel.unary_unary(
-                '/modsdb.v1.ModsDB/RestoreCheckpoint',
-                request_serializer=modsdb__pb2.RestoreCheckpointRequest.SerializeToString,
-                response_deserializer=modsdb__pb2.RestoreCheckpointResponse.FromString,
-                _registered_method=True)
         self.Stats = channel.unary_unary(
                 '/modsdb.v1.ModsDB/Stats',
                 request_serializer=modsdb__pb2.Empty.SerializeToString,
@@ -88,7 +73,7 @@ class ModsDBStub:
 
 
 class ModsDBServicer:
-    """modsdb MVP API. The same messages are the WAL record payloads.
+    """modsdb API. The same messages are the WAL record payloads.
     """
 
     def CreateTable(self, request, context):
@@ -126,24 +111,6 @@ class ModsDBServicer:
     def FetchAndMark(self, request, context):
         """atomic read + patch (worker fetch)
         """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def CreateCheckpoint(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def ListCheckpoints(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def RestoreCheckpoint(self, request, context):
-        """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -187,21 +154,6 @@ def add_ModsDBServicer_to_server(servicer, server):
                     request_deserializer=modsdb__pb2.FetchAndMarkRequest.FromString,
                     response_serializer=modsdb__pb2.Rows.SerializeToString,
             ),
-            'CreateCheckpoint': grpc.unary_unary_rpc_method_handler(
-                    servicer.CreateCheckpoint,
-                    request_deserializer=modsdb__pb2.CreateCheckpointRequest.FromString,
-                    response_serializer=modsdb__pb2.Checkpoint.SerializeToString,
-            ),
-            'ListCheckpoints': grpc.unary_unary_rpc_method_handler(
-                    servicer.ListCheckpoints,
-                    request_deserializer=modsdb__pb2.Empty.FromString,
-                    response_serializer=modsdb__pb2.CheckpointList.SerializeToString,
-            ),
-            'RestoreCheckpoint': grpc.unary_unary_rpc_method_handler(
-                    servicer.RestoreCheckpoint,
-                    request_deserializer=modsdb__pb2.RestoreCheckpointRequest.FromString,
-                    response_serializer=modsdb__pb2.RestoreCheckpointResponse.SerializeToString,
-            ),
             'Stats': grpc.unary_unary_rpc_method_handler(
                     servicer.Stats,
                     request_deserializer=modsdb__pb2.Empty.FromString,
@@ -216,7 +168,7 @@ def add_ModsDBServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class ModsDB:
-    """modsdb MVP API. The same messages are the WAL record payloads.
+    """modsdb API. The same messages are the WAL record payloads.
     """
 
     @staticmethod
@@ -371,87 +323,6 @@ class ModsDB:
             '/modsdb.v1.ModsDB/FetchAndMark',
             modsdb__pb2.FetchAndMarkRequest.SerializeToString,
             modsdb__pb2.Rows.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def CreateCheckpoint(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/modsdb.v1.ModsDB/CreateCheckpoint',
-            modsdb__pb2.CreateCheckpointRequest.SerializeToString,
-            modsdb__pb2.Checkpoint.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def ListCheckpoints(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/modsdb.v1.ModsDB/ListCheckpoints',
-            modsdb__pb2.Empty.SerializeToString,
-            modsdb__pb2.CheckpointList.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def RestoreCheckpoint(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/modsdb.v1.ModsDB/RestoreCheckpoint',
-            modsdb__pb2.RestoreCheckpointRequest.SerializeToString,
-            modsdb__pb2.RestoreCheckpointResponse.FromString,
             options,
             channel_credentials,
             insecure,

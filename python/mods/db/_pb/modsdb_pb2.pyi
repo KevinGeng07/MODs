@@ -12,42 +12,21 @@ class ColumnType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     COLUMN_TYPE_UNSPECIFIED: _ClassVar[ColumnType]
     INT64: _ClassVar[ColumnType]
     FLOAT64: _ClassVar[ColumnType]
-    TENSOR: _ClassVar[ColumnType]
-
-class DType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    F32: _ClassVar[DType]
-    U8: _ClassVar[DType]
 COLUMN_TYPE_UNSPECIFIED: ColumnType
 INT64: ColumnType
 FLOAT64: ColumnType
-TENSOR: ColumnType
-F32: DType
-U8: DType
 
 class Empty(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
-class Tensor(_message.Message):
-    __slots__ = ("shape", "data", "dtype")
-    SHAPE_FIELD_NUMBER: _ClassVar[int]
-    DATA_FIELD_NUMBER: _ClassVar[int]
-    DTYPE_FIELD_NUMBER: _ClassVar[int]
-    shape: _containers.RepeatedScalarFieldContainer[int]
-    data: bytes
-    dtype: DType
-    def __init__(self, shape: _Optional[_Iterable[int]] = ..., data: _Optional[bytes] = ..., dtype: _Optional[_Union[DType, str]] = ...) -> None: ...
-
 class Value(_message.Message):
-    __slots__ = ("i", "f", "t")
+    __slots__ = ("i", "f")
     I_FIELD_NUMBER: _ClassVar[int]
     F_FIELD_NUMBER: _ClassVar[int]
-    T_FIELD_NUMBER: _ClassVar[int]
     i: int
     f: float
-    t: Tensor
-    def __init__(self, i: _Optional[int] = ..., f: _Optional[float] = ..., t: _Optional[_Union[Tensor, _Mapping]] = ...) -> None: ...
+    def __init__(self, i: _Optional[int] = ..., f: _Optional[float] = ...) -> None: ...
 
 class Column(_message.Message):
     __slots__ = ("name", "type")
@@ -188,60 +167,16 @@ class FetchAndMarkRequest(_message.Message):
     tag: str
     def __init__(self, table: _Optional[str] = ..., ids: _Optional[_Iterable[int]] = ..., mark: _Optional[_Mapping[str, Value]] = ..., columns: _Optional[_Iterable[str]] = ..., tag: _Optional[str] = ...) -> None: ...
 
-class CreateCheckpointRequest(_message.Message):
-    __slots__ = ("name", "blob")
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    BLOB_FIELD_NUMBER: _ClassVar[int]
-    name: str
-    blob: bytes
-    def __init__(self, name: _Optional[str] = ..., blob: _Optional[bytes] = ...) -> None: ...
-
-class Checkpoint(_message.Message):
-    __slots__ = ("id", "name", "lsn", "created_unix_ms")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    LSN_FIELD_NUMBER: _ClassVar[int]
-    CREATED_UNIX_MS_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    name: str
-    lsn: int
-    created_unix_ms: int
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., lsn: _Optional[int] = ..., created_unix_ms: _Optional[int] = ...) -> None: ...
-
-class CheckpointList(_message.Message):
-    __slots__ = ("checkpoints",)
-    CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
-    checkpoints: _containers.RepeatedCompositeFieldContainer[Checkpoint]
-    def __init__(self, checkpoints: _Optional[_Iterable[_Union[Checkpoint, _Mapping]]] = ...) -> None: ...
-
-class RestoreCheckpointRequest(_message.Message):
-    __slots__ = ("id",)
-    ID_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    def __init__(self, id: _Optional[str] = ...) -> None: ...
-
-class RestoreCheckpointResponse(_message.Message):
-    __slots__ = ("checkpoint", "blob", "lsn")
-    CHECKPOINT_FIELD_NUMBER: _ClassVar[int]
-    BLOB_FIELD_NUMBER: _ClassVar[int]
-    LSN_FIELD_NUMBER: _ClassVar[int]
-    checkpoint: Checkpoint
-    blob: bytes
-    lsn: int
-    def __init__(self, checkpoint: _Optional[_Union[Checkpoint, _Mapping]] = ..., blob: _Optional[bytes] = ..., lsn: _Optional[int] = ...) -> None: ...
-
 class StatsResponse(_message.Message):
-    __slots__ = ("last_lsn", "last_snapshot_lsn", "wal_bytes", "wal_segments", "commits", "fsyncs")
+    __slots__ = ("last_lsn", "last_snapshot_lsn", "wal_bytes", "commits", "fsyncs")
     LAST_LSN_FIELD_NUMBER: _ClassVar[int]
     LAST_SNAPSHOT_LSN_FIELD_NUMBER: _ClassVar[int]
     WAL_BYTES_FIELD_NUMBER: _ClassVar[int]
-    WAL_SEGMENTS_FIELD_NUMBER: _ClassVar[int]
     COMMITS_FIELD_NUMBER: _ClassVar[int]
     FSYNCS_FIELD_NUMBER: _ClassVar[int]
     last_lsn: int
     last_snapshot_lsn: int
     wal_bytes: int
-    wal_segments: int
     commits: int
     fsyncs: int
-    def __init__(self, last_lsn: _Optional[int] = ..., last_snapshot_lsn: _Optional[int] = ..., wal_bytes: _Optional[int] = ..., wal_segments: _Optional[int] = ..., commits: _Optional[int] = ..., fsyncs: _Optional[int] = ...) -> None: ...
+    def __init__(self, last_lsn: _Optional[int] = ..., last_snapshot_lsn: _Optional[int] = ..., wal_bytes: _Optional[int] = ..., commits: _Optional[int] = ..., fsyncs: _Optional[int] = ...) -> None: ...

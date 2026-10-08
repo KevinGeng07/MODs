@@ -5,12 +5,11 @@ from fastapi.testclient import TestClient
 
 from mods.data import run_table
 from mods.db import CONSUMED, QUEUED, Client, incr, put
-from mods.graph import model_graph
 from mods.launch import DBProcess
-from mods.server.app import create_app
+from mods.watch import build_app
 from mods.session import Session, batch_log, batch_samples
 
-from conftest import tiny_model
+from conftest import Tiny, datasets, tiny_model
 
 
 def wait_for(pred, timeout=60):
@@ -36,7 +35,7 @@ def test_db_survives_kill(tmp_path):
 
 def test_worker_queue_step_eval_shuffle(client):
     m, opt = tiny_model()
-    s = Session(client, m, opt, batch_size=8, num_workers=2, prefetch_factor=2)
+    s = Session(client, m, opt, *datasets(), batch_size=8, num_workers=2, prefetch_factor=2)
     try:
         t = run_table(s.run)
         # 2 workers x prefetch 2 = 4 batches x 8 rows queued while paused, no more.
@@ -61,8 +60,8 @@ def test_worker_queue_step_eval_shuffle(client):
 def test_sessions_are_isolated(client):
     m1, o1 = tiny_model()
     m2, o2 = tiny_model()
-    a = Session(client, m1, o1, batch_size=8, num_workers=0)
-    b = Session(client, m2, o2, batch_size=5, num_workers=0)
+    a = Session(client, m1, o1, *datasets(), batch_size=8, num_workers=0)
+    b = Session(client, m2, o2, *datasets(), batch_size=5, num_workers=0)
     try:
         assert (a.run, b.run) == (1, 2) and a.model is not b.model
         first = [a.step() for _ in range(3)]
@@ -82,14 +81,15 @@ def test_sessions_are_isolated(client):
 
 
 def test_http_api(client):
-    graph = model_graph(tiny_model()[0], torch.zeros(1, 4, 4))
-    with TestClient(create_app(client, tiny_model, graph)) as tc:
+    train, val = datasets()
+    with TestClient(build_app(client, Tiny, train=train, val=val, classes=["low", "high"])) as tc:
         page = tc.get("/")
         assert "mods_ · Start Training" in page.text and page.headers["cache-control"] == "no-store"
         # Exactly one setup popup; a copy inside a JS template would cover the page on every render.
         script = page.text[page.text.index("<script>"):]
         assert page.text.count('id="setup-wrap"') == 1 and 'class="overlay"' not in script
         assert tc.post("/api/runs", json={"batch_size": 0, "workers": 0}).status_code == 422
+        assert tc.get("/api/info").json() == {"name": "Tiny", "classes": ["low", "high"]}
 
         r0 = tc.post("/api/runs", json={"batch_size": 4, "workers": 0}).json()["run"]
         tc.post(f"/api/runs/{r0}/step")
@@ -120,7 +120,7 @@ def test_http_api(client):
 
 def test_batch_log_shows_latest_50_and_indices(client):
     m, o = tiny_model()
-    s = Session(client, m, o, batch_size=4, num_workers=0)
+    s = Session(client, m, o, *datasets(), batch_size=4, num_workers=0)
     try:
         last = [s.step() for _ in range(55)][-1]
         log = batch_log(client, s.run)
@@ -132,21 +132,25 @@ def test_batch_log_shows_latest_50_and_indices(client):
         s.close()
 
 
-def test_uint8_images_and_run_table_dropped_on_close(client):
+def test_run_table_dropped_on_close(client):
     import pytest
     from mods.db import DBError
-    from mods.data import as_input
-    img = torch.arange(0, 784, dtype=torch.int64).remainder(256).to(torch.uint8).reshape(1, 28, 28)
-    client.create_table("imgs", {"x": "tensor"})
-    client.apply([put("imgs", 1, {"x": img})])
-    back = client.get_rows("imgs", [1])[0]["x"]
-    assert back.dtype == torch.uint8 and torch.equal(back, img)
-    assert as_input(back).max() <= 1.0
-
     m, o = tiny_model()
-    s = Session(client, m, o, batch_size=4, num_workers=0)
+    s = Session(client, m, o, *datasets(), batch_size=4, num_workers=0)
     s.step()
     s.close()
     with pytest.raises(DBError):
         client.scan(run_table(s.run))
     assert [x["step"] for x in batch_log(client, s.run)] == [1]  # history survives
+
+
+def test_large_dataset_starts(client):
+    """A run's first commit holds one state row per sample: 30k rows is over gRPC's 4 MB default."""
+    from torch.utils.data import TensorDataset
+    big = TensorDataset(torch.zeros(30_000, 4, 4), torch.zeros(30_000).long())
+    m, o = tiny_model()
+    s = Session(client, m, o, big, datasets()[1], batch_size=8, num_workers=0)
+    try:
+        assert s.step()["batch"] == 0
+    finally:
+        s.close()

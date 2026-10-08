@@ -8,22 +8,20 @@ import signal
 import socket
 import subprocess
 import threading
-import time
 from pathlib import Path
-from typing import Optional
 
 REPO = Path(__file__).resolve().parents[2]
 
 
 def find_binary() -> Path:
-    """$MODSDB_BIN, else <repo>/bin/modsdb (built with `go build` if missing)."""
-    env = os.environ.get("MODSDB_BIN")
-    if env:
-        return Path(env)
+    """$MODSDB_BIN, else <repo>/bin/modsdb, (re)built with Go when missing or older than its sources."""
+    if os.environ.get("MODSDB_BIN"):
+        return Path(os.environ["MODSDB_BIN"])
     binary = REPO / "bin" / "modsdb"
-    if not binary.exists():
+    built = binary.stat().st_mtime if binary.exists() else 0
+    if any(src.stat().st_mtime > built for src in (REPO / "db").rglob("*.go")):
         if shutil.which("go") is None:
-            raise FileNotFoundError(f"{binary} not found and Go is not installed to build it")
+            raise FileNotFoundError(f"building {binary} needs Go (https://go.dev/dl)")
         binary.parent.mkdir(exist_ok=True)
         subprocess.run(["go", "build", "-o", str(binary), "./cmd/modsdb"], cwd=REPO / "db", check=True)
     return binary
@@ -36,22 +34,18 @@ def free_port() -> int:
 
 
 class DBProcess:
-    """A running modsdb. Use as a context manager or call stop()."""
+    """A running modsdb on a free local port. Use as a context manager or call stop()."""
 
-    def __init__(self, data_dir: str | os.PathLike, port: Optional[int] = None, extra_args: tuple = (),
-                 startup_timeout: float = 20.0, quiet: bool = True):
-        self.port = port or free_port()
-        self.addr = f"127.0.0.1:{self.port}"
-        cmd = [str(find_binary()), "--data-dir", str(data_dir), "--addr", self.addr, *extra_args]
+    def __init__(self, data_dir: str | os.PathLike, startup_timeout: float = 20.0):
+        self.addr = f"127.0.0.1:{free_port()}"
+        cmd = [str(find_binary()), "--data-dir", str(data_dir), "--addr", self.addr]
         self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
         self.log: list[str] = []
         ready = threading.Event()
 
-        def pump():
+        def pump():  # keep the pipe drained; modsdb prints "listening on" once recovery is done
             for line in self.proc.stdout:
                 self.log.append(line.rstrip())
-                if not quiet:
-                    print("[modsdb]", line.rstrip(), flush=True)
                 if "listening on" in line:
                     ready.set()
             ready.set()
@@ -62,6 +56,7 @@ class DBProcess:
             raise RuntimeError("modsdb failed to start:\n" + "\n".join(self.log))
 
     def stop(self, timeout: float = 10.0) -> None:
+        """SIGTERM: modsdb writes a final snapshot and exits."""
         if self.proc.poll() is None:
             self.proc.send_signal(signal.SIGTERM)
             try:
@@ -80,15 +75,3 @@ class DBProcess:
 
     def __exit__(self, *exc):
         self.stop()
-
-
-def wait_ready(client, timeout: float = 10.0) -> None:
-    deadline = time.time() + timeout
-    while True:
-        try:
-            client.stats(timeout=1.0)
-            return
-        except Exception:
-            if time.time() > deadline:
-                raise
-            time.sleep(0.1)

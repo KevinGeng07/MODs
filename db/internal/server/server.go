@@ -63,23 +63,6 @@ func (s *Server) FetchAndMark(_ context.Context, r *pb.FetchAndMarkRequest) (*pb
 	return &pb.Rows{Rows: rows}, toStatus(err)
 }
 
-func (s *Server) CreateCheckpoint(_ context.Context, r *pb.CreateCheckpointRequest) (*pb.Checkpoint, error) {
-	c, err := s.e.CreateCheckpoint(r.Name, r.Blob)
-	return c, toStatus(err)
-}
-
-func (s *Server) ListCheckpoints(context.Context, *pb.Empty) (*pb.CheckpointList, error) {
-	return &pb.CheckpointList{Checkpoints: s.e.ListCheckpoints()}, nil
-}
-
-func (s *Server) RestoreCheckpoint(_ context.Context, r *pb.RestoreCheckpointRequest) (*pb.RestoreCheckpointResponse, error) {
-	c, blob, lsn, err := s.e.RestoreCheckpoint(r.Id)
-	if err != nil {
-		return nil, toStatus(err)
-	}
-	return &pb.RestoreCheckpointResponse{Checkpoint: c, Blob: blob, Lsn: lsn}, nil
-}
-
 func (s *Server) Stats(context.Context, *pb.Empty) (*pb.StatsResponse, error) {
 	return s.e.Stats(), nil
 }

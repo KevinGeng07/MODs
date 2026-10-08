@@ -11,7 +11,6 @@ import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Callable
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
@@ -34,8 +33,8 @@ class NewRun(BaseModel):
 class Runs:
     """Holds the one live run, if any."""
 
-    def __init__(self, client, make_model: Callable):
-        self.client, self.make_model = client, make_model
+    def __init__(self, client, setup):
+        self.client, self.setup = client, setup
         self.live: Session | None = None
         self.seen = 0.0
         self.lock = threading.Lock()
@@ -44,9 +43,9 @@ class Runs:
         with self.lock:
             self._end()
             clear_history(self.client)
-            model, optimizer = self.make_model()
-            self.live = Session(self.client, model, optimizer, batch_size=cfg.batch_size, num_workers=cfg.workers,
-                                prefetch_factor=cfg.prefetch)
+            model, optimizer = self.setup.make_model()
+            self.live = Session(self.client, model, optimizer, self.setup.train, self.setup.val,
+                                batch_size=cfg.batch_size, num_workers=cfg.workers, prefetch_factor=cfg.prefetch)
             self.seen = time.monotonic()
             return self.live
 
@@ -62,9 +61,10 @@ class Runs:
             self.live.close()
             self.live = None
 
-    def end(self, run: int) -> None:
+    def end(self, run: int | None = None) -> None:
+        """End the live run (only if it is `run`, when given)."""
         with self.lock:
-            if self.live is not None and self.live.run == run:
+            if self.live is not None and run in (None, self.live.run):
                 self._end()
 
     def reap(self) -> None:
@@ -74,20 +74,16 @@ class Runs:
                 if self.live is not None and time.monotonic() - self.seen > IDLE_S:
                     self._end()
 
-    def end_all(self) -> None:
-        with self.lock:
-            self._end()
 
-
-def create_app(client, make_model: Callable, graph: dict) -> FastAPI:
-    """make_model() must return a fresh (model, optimizer) pair each call."""
-    runs = Runs(client, make_model)
+def create_app(client, setup) -> FastAPI:
+    """`setup` is a mods.watch.Setup: the model factory, datasets, classes and graph."""
+    runs = Runs(client, setup)
 
     @asynccontextmanager
     async def lifespan(_app):
         threading.Thread(target=runs.reap, daemon=True).start()
         yield
-        runs.end_all()
+        runs.end()
 
     app = FastAPI(title="MODs", lifespan=lifespan)
 
@@ -111,7 +107,11 @@ def create_app(client, make_model: Callable, graph: dict) -> FastAPI:
 
     @app.get("/api/graph")
     def get_graph():
-        return graph
+        return setup.graph
+
+    @app.get("/api/info")
+    def info():
+        return {"name": setup.name, "classes": setup.classes}
 
     @app.post("/api/runs")
     def new_run(cfg: NewRun):
@@ -167,5 +167,4 @@ def create_app(client, make_model: Callable, graph: dict) -> FastAPI:
         except KeyError as e:
             raise HTTPException(404, str(e))
 
-    app.state.runs = runs
     return app

@@ -17,31 +17,27 @@ running() { [[ -f "$PID_FILE" ]] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; }
 listener() { lsof -nP -t -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | head -1; }
 serving() { curl -fsS -o /dev/null --max-time 2 "$URL" 2>/dev/null; }
 
+# First run: create .venv and install mods_ (modsdb is built with Go when the demo starts).
 setup() {
   if [[ ! -x "$PY" ]]; then
     echo "creating .venv and installing mods_ ..."
     python3 -m venv "$ROOT/.venv" --system-site-packages
     "$ROOT/.venv/bin/pip" install -q -e "$ROOT[examples,dev]"
   fi
-  # Rebuild the database binary when any Go source is newer than it.
-  if [[ ! -x "$ROOT/bin/modsdb" ]] || [[ -n "$(find "$ROOT/db" -name '*.go' -newer "$ROOT/bin/modsdb" -print -quit)" ]]; then
-    echo "building bin/modsdb ..."
-    (cd "$ROOT/db" && go build -o "$ROOT/bin/modsdb" ./cmd/modsdb)
-  fi
 }
 
 start() {
   if running; then echo "mods_ is already running (pid $(cat "$PID_FILE")) at $URL"; return; fi
-  if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1 || lsof -nP -iTCP:7070 -sTCP:LISTEN >/dev/null 2>&1; then
-    echo "port $PORT or 7070 is in use by another process; stop it first:" >&2
-    lsof -nP -iTCP:"$PORT" -iTCP:7070 -sTCP:LISTEN >&2 || true
+  if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "port $PORT is in use by another process; stop it first:" >&2
+    lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >&2 || true
     exit 1
   fi
   setup
   echo "--- start $(date '+%Y-%m-%d %H:%M:%S')" >> "$LOG"
   local from; from=$(( $(wc -l < "$LOG") + 1 ))  # arithmetic strips macOS wc's padding
   # nohup + setsid-style detach: the app keeps running after this terminal closes.
-  (cd "$ROOT" && nohup "$PY" examples/mnist_cnn.py --port "$PORT" >> "$LOG" 2>&1 < /dev/null & echo $! > "$PID_FILE")
+  (cd "$ROOT" && nohup "$PY" -m mods demo --port "$PORT" >> "$LOG" 2>&1 < /dev/null & echo $! > "$PID_FILE")
   printf "starting"
   for _ in $(seq 1 300); do
     if tail -n +"$from" "$LOG" | grep -q "mods_ UI"; then
@@ -60,11 +56,9 @@ stop() {
   if [[ -z "$pid" ]] && ! running; then echo "mods_ is not running"; rm -f "$PID_FILE"; return; fi
   [[ -z "$pid" ]] && pid=$(cat "$PID_FILE")
   echo "$pid" > "$PID_FILE"
-  kill -INT "$pid"          # clean shutdown: ends runs, final database snapshot
+  kill -INT "$pid"          # clean shutdown: ends the run, final database snapshot
   for _ in $(seq 1 40); do running || break; sleep 0.5; done
   if running; then kill -TERM "$pid"; sleep 2; fi
-  # wait for modsdb to release its port
-  for _ in $(seq 1 20); do lsof -nP -iTCP:7070 -sTCP:LISTEN >/dev/null 2>&1 || break; sleep 0.5; done
   rm -f "$PID_FILE"
   echo "mods_ stopped"
 }

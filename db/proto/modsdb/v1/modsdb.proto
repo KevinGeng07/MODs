@@ -3,7 +3,7 @@ package modsdb.v1;
 
 option go_package = "mods/db/gen/modsdbv1;modsdbv1";
 
-// modsdb MVP API. The same messages are the WAL record payloads.
+// modsdb API. The same messages are the WAL record payloads.
 service ModsDB {
   rpc CreateTable(CreateTableRequest)   returns (CommitAck);
   rpc DropTable(DropTableRequest)       returns (CommitAck);
@@ -11,21 +11,14 @@ service ModsDB {
   rpc Scan(ScanRequest)                 returns (Rows);      // whole table, optional status filter
   rpc Apply(WriteBatch)                 returns (CommitAck); // atomic multi-op write
   rpc FetchAndMark(FetchAndMarkRequest) returns (Rows);      // atomic read + patch (worker fetch)
-
-  rpc CreateCheckpoint(CreateCheckpointRequest)   returns (Checkpoint);
-  rpc ListCheckpoints(Empty)                      returns (CheckpointList);
-  rpc RestoreCheckpoint(RestoreCheckpointRequest) returns (RestoreCheckpointResponse);
-
-  rpc Stats(Empty) returns (StatsResponse);
+  rpc Stats(Empty)                      returns (StatsResponse);
 }
 
 message Empty {}
 
-enum ColumnType { COLUMN_TYPE_UNSPECIFIED = 0; INT64 = 1; FLOAT64 = 2; TENSOR = 3; }
+enum ColumnType { COLUMN_TYPE_UNSPECIFIED = 0; INT64 = 1; FLOAT64 = 2; }
 
-enum DType { F32 = 0; U8 = 1; }
-message Tensor { repeated int64 shape = 1; bytes data = 2; DType dtype = 3; } // little-endian; F32 by default
-message Value { oneof v { int64 i = 1; double f = 2; Tensor t = 3; } }
+message Value { oneof v { int64 i = 1; double f = 2; } }
 message Column { string name = 1; ColumnType type = 2; }
 message Schema { repeated Column columns = 1; }
 message Row {
@@ -64,17 +57,10 @@ message FetchAndMarkRequest {
   string tag = 5;
 }
 
-message CreateCheckpointRequest { string name = 1; bytes blob = 2; }
-message Checkpoint { string id = 1; string name = 2; uint64 lsn = 3; int64 created_unix_ms = 4; }
-message CheckpointList { repeated Checkpoint checkpoints = 1; }
-message RestoreCheckpointRequest { string id = 1; }
-message RestoreCheckpointResponse { Checkpoint checkpoint = 1; bytes blob = 2; uint64 lsn = 3; }
-
 message StatsResponse {
   uint64 last_lsn = 1;
   uint64 last_snapshot_lsn = 2;
   uint64 wal_bytes = 3;
-  uint32 wal_segments = 4;
-  uint64 commits = 5;
-  uint64 fsyncs = 6;               // commits / fsyncs = average group-commit size
+  uint64 commits = 4;
+  uint64 fsyncs = 5;               // commits / fsyncs = average group-commit size
 }
